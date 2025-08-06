@@ -59,7 +59,7 @@ function createConfig() {
   if (process.env.CLOUDINARY_URL) {
     console.log('CLOUDINARY_URL found, setting storage to cloudinary');
     config.storage = {
-      active: 'cloudinary',
+      active: 'my-cloudinary-adapter',
       cloudinary: {
         useDatedFolder: false,
         upload: {
