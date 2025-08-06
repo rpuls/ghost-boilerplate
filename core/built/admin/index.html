@@ -1,33 +1,24 @@
-<!doctype html>
-<!--[if (IE 8)&!(IEMobile)]><html class="no-js lt-ie9" lang="en"><![endif]-->
-<!--[if (gte IE 9)| IEMobile |!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<!DOCTYPE html>
+<html class="no-js" lang="en">
 <head>
-    <meta http-equiv="Content-Type" content="text/html" charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta charset="UTF-8" />
 
-    <title>Ghost Admin</title>
+    <title>Ghost</title>
 
     
-<meta name="ghost-admin/config/environment" content="%7B%22modulePrefix%22%3A%22ghost-admin%22%2C%22environment%22%3A%22production%22%2C%22cdnUrl%22%3A%22%22%2C%22editorUrl%22%3A%22%22%2C%22rootURL%22%3A%22%22%2C%22locationType%22%3A%22trailing-hash%22%2C%22EmberENV%22%3A%7B%22FEATURES%22%3A%7B%7D%2C%22EXTEND_PROTOTYPES%22%3A%7B%22Date%22%3Afalse%2C%22Array%22%3Atrue%2C%22String%22%3Atrue%2C%22Function%22%3Afalse%7D%2C%22_APPLICATION_TEMPLATE_WRAPPER%22%3Afalse%2C%22_JQUERY_INTEGRATION%22%3Atrue%2C%22_TEMPLATE_ONLY_GLIMMER_COMPONENTS%22%3Atrue%7D%2C%22APP%22%3A%7B%22version%22%3A%225.112%22%2C%22name%22%3A%22ghost-admin%22%7D%2C%22ember-simple-auth%22%3A%7B%7D%2C%22%40sentry%2Fember%22%3A%7B%22disablePerformance%22%3Atrue%2C%22sentry%22%3A%7B%7D%7D%2C%22ember-cli-mirage%22%3A%7B%22usingProxy%22%3Afalse%2C%22useDefaultPassthroughs%22%3Atrue%7D%2C%22exportApplicationGlobal%22%3Afalse%2C%22ember-load%22%3A%7B%22loadingIndicatorClass%22%3A%22ember-load-indicator%22%7D%2C%22editorFilename%22%3A%22koenig-lexical.umd.js%22%2C%22editorHash%22%3A%225ea6a6e0ae%22%2C%22adminXDemoFilename%22%3A%22admin-x-demo.js%22%2C%22adminXDemoHash%22%3A%2215e68d0314%22%2C%22adminXSettingsFilename%22%3A%22admin-x-settings.js%22%2C%22adminXSettingsHash%22%3A%22b89b845936%22%2C%22adminXActivitypubFilename%22%3A%22admin-x-activitypub.js%22%2C%22adminXActivitypubHash%22%3A%228b10f84a3e%22%2C%22postsFilename%22%3A%22posts.js%22%2C%22postsHash%22%3A%22cb54d87657%22%2C%22adminXActivitypubCustomUrl%22%3A%22https%3A%2F%2Fcdn.jsdelivr.net%2Fghost%2Fadmin-x-activitypub%400%2Fdist%2Fadmin-x-activitypub.js%22%7D" />
+<meta name="ghost-admin/config/environment" content="%7B%22modulePrefix%22%3A%22ghost-admin%22%2C%22environment%22%3A%22production%22%2C%22cdnUrl%22%3A%22%22%2C%22editorUrl%22%3A%22%22%2C%22rootURL%22%3A%22%22%2C%22locationType%22%3A%22trailing-hash%22%2C%22EmberENV%22%3A%7B%22FEATURES%22%3A%7B%7D%2C%22EXTEND_PROTOTYPES%22%3A%7B%22Date%22%3Afalse%2C%22Array%22%3Atrue%2C%22String%22%3Atrue%2C%22Function%22%3Afalse%7D%2C%22_APPLICATION_TEMPLATE_WRAPPER%22%3Afalse%2C%22_JQUERY_INTEGRATION%22%3Atrue%2C%22_TEMPLATE_ONLY_GLIMMER_COMPONENTS%22%3Atrue%7D%2C%22APP%22%3A%7B%22version%22%3A%226.0%22%2C%22name%22%3A%22ghost-admin%22%7D%2C%22ember-simple-auth%22%3A%7B%7D%2C%22%40sentry%2Fember%22%3A%7B%22disablePerformance%22%3Atrue%2C%22sentry%22%3A%7B%7D%7D%2C%22ember-cli-mirage%22%3A%7B%22usingProxy%22%3Afalse%2C%22useDefaultPassthroughs%22%3Atrue%7D%2C%22exportApplicationGlobal%22%3Afalse%2C%22ember-load%22%3A%7B%22loadingIndicatorClass%22%3A%22ember-load-indicator%22%7D%2C%22editorFilename%22%3A%22koenig-lexical.umd.js%22%2C%22editorHash%22%3A%2237bd1e3e4d%22%2C%22adminXSettingsFilename%22%3A%22admin-x-settings.js%22%2C%22adminXSettingsHash%22%3A%223958492b48%22%2C%22adminXActivitypubFilename%22%3A%22admin-x-activitypub.js%22%2C%22adminXActivitypubHash%22%3A%22a6a89eb153%22%2C%22postsFilename%22%3A%22posts.js%22%2C%22postsHash%22%3A%221a3a628146%22%2C%22statsFilename%22%3A%22stats.js%22%2C%22statsHash%22%3A%229a36081a2d%22%2C%22adminXActivitypubCustomUrl%22%3A%22https%3A%2F%2Fcdn.jsdelivr.net%2Fghost%2Fadmin-x-activitypub%400%2Fdist%2Fadmin-x-activitypub.js%22%7D" />
 
-    <meta name="HandheldFriendly" content="True" />
-    <meta name="MobileOptimized" content="320" />
     <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1, minimal-ui, viewport-fit=cover" />
     <meta name="pinterest" content="nopin" />
 
-    <meta http-equiv="cleartype" content="on" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Ghost" />
+    <meta name="apple-mobile-web-app-title" content="Ghost" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
-    <meta name="apple-mobile-web-app-title" content="Ghost" />
 
     <link rel="shortcut icon" href="assets/img/favicon-a9c6dbdcdc3ae568f4e0dad92149a0e3.ico" />
     <link rel="apple-touch-icon" href="assets/img/apple-touch-icon-74680e326a7e87b159d366c7d4fb3d4b.png" />
-
-    <meta name="application-name" content="Ghost" />
-    <meta name="msapplication-TileColor" content="#15171A" />
-    <meta name="msapplication-square70x70logo" content="assets/img/small-b90396925485f17b2ca82c31be42de5f.png" />
-    <meta name="msapplication-square150x150logo" content="assets/img/medium-fef07013cffd5c45a655a250912a0ad7.png" />
-    <meta name="msapplication-square310x310logo" content="assets/img/large-ac90af7c93a4b47e8d956fa9fef31d9d.png" />
 
     <!-- variables that we don't want postcss-custom-properties to remove -->
     <style>
@@ -37,7 +28,7 @@
     </style>
 
     <link integrity="" rel="stylesheet" href="assets/vendor-0ede59da8efb5e28fa929557f7ff7154.css">
-    <link integrity="" rel="stylesheet" href="assets/ghost-601ebfe5c327c2c1ce4975b0dcf56128.css" title="light">
+    <link integrity="" rel="stylesheet" href="assets/ghost-a0676bad4687584c2c1b3b6b8bed5b31.css" title="light">
 
     
 </head>
@@ -56,9 +47,9 @@
 
     <div id="ember-basic-dropdown-wormhole"></div>
 
-    <script src="assets/vendor-fca15534b8426c0567400113c63a3e21.js"></script>
-<script src="assets/chunk.874.461cb3cf5b6b36915f8c.js"></script>
-<script src="assets/chunk.524.db49da6fd8ae155205a4.js"></script>
-    <script src="assets/ghost-62bd4d4c837d453e1038808dc1cd1e4c.js"></script>
+    <script src="assets/vendor-aed0068cf9b67d042dd23a6343545b7b.js"></script>
+<script src="assets/chunk.397.f965bec6bb556d2750de.js"></script>
+<script src="assets/chunk.524.b65720d94bb0efea4451.js"></script>
+    <script src="assets/ghost-338989d8cb5fce4a84d53ddd39ac80d4.js"></script>
 </body>
 </html>

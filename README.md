@@ -1,142 +1,104 @@
+&nbsp;
 <p align="center">
-  <a href="https://ghost.org">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/hczpmiapo/image/upload/v1731276441/Static%20assets/Logos/ghost_vgwnyq.png">
-      <source media="(prefers-color-scheme: light)" srcset="https://res.cloudinary.com/hczpmiapo/image/upload/v1731276441/Static%20assets/Logos/ghost_vgwnyq.png">
-      <img alt="Ghost logo" src="https://res.cloudinary.com/hczpmiapo/image/upload/v1731276441/Static%20assets/Logos/ghost_vgwnyq.png" width=100>
-    </picture>
+  <a href="https://ghost.org/#gh-light-mode-only" target="_blank">
+    <img src="https://user-images.githubusercontent.com/65487235/157884383-1b75feb1-45d8-4430-b636-3f7e06577347.png" alt="Ghost" width="200px">
   </a>
-  <a href="https://railway.app/template/ZQcedl?referralCode=-Yg50p">
-    <picture>
-      <source media="(prefers-color-scheme: light)" srcset="https://railway.app/brand/logo-light.svg">
-      <source media="(prefers-color-scheme: dark)" srcset="https://railway.app/brand/logo-dark.svg">
-      <img alt="Railway logo" src="https://railway.app/brand/logo-light.svg" width=100>
-    </picture>
-  </a>
-</p> 
-
-<h2 align="center">
-  Ghost Blog Starter<br>
-  <a href="https://railway.app/template/ZQcedl?referralCode=-Yg50p">One-click deploy on Railway!</a>
-</h2>
-
-<p align="center">
-  A professional publishing platform built on Node.js, featuring MySQL database support, Cloudinary image storage, and Mailgun email integration
-</p>
-
-## About this boilerplate
-
-This boilerplate is a pre-configured Ghost blog setup optimized for deployment on [Railway](https://railway.app?referralCode=-Yg50p). It includes a complete backend and admin dashboard, with support for MySQL database, Cloudinary image storage, and Mailgun email integration. The project is ready to use as-is when hosted on Railway.
-
-Updated to `version 5.112.0` 🥳
-
-## Preconfigured Features & Integrations
-
-- **MySQL Database**: Robust and reliable database storage
-- **Cloudinary Integration**: Cloud-based image storage with local fallback
-- **Mailgun Integration**: Professional email delivery service
-- **Admin Dashboard**: Full-featured content management system
-- **SEO Optimized**: Built-in SEO tools and features
-
-### Railway Setup (Recommended)
-
-1. Use the one-click deploy template:
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/ZQcedl?referralCode=-Yg50p)
-
-2. Railway will automatically configure the following environment variables:
-```env
-DB_HOST="${MySQL.MYSQLHOST}"
-DB_NAME="${MySQL.MYSQLDATABASE}"
-DB_USER="${MySQL.MYSQLUSER}"
-DB_PASSWORD="${MySQL.MYSQLPASSWORD}"
-PUBLIC_URL="https://${RAILWAY_PUBLIC_DOMAIN}"
-NODE_ENV="production"
-```
-
-3. Optional: Configure additional integrations:
-```env
-# Cloudinary Configuration (optional)
-CLOUDINARY_URL="" # Example: cloudinary://<id>:<secret>@<cloud-name>
-
-# Mailgun Configuration (optional)
-MAILGUN_SMTP_LOGIN="" # Example: your@mail.com
-MAILGUN_SMTP_PASSWORD=""
-```
-
-### Local Development (Optional)
-
-While the project is ready to use as-is on Railway, if you need to make customizations:
-
-1. Deploy to Railway first (using button above)
-2. Use Railway's "Eject to Git Repository" feature to create your own repository
-3. Clone your ejected repository locally
-
-This approach ensures your local development remains connected to Railway's CI/CD pipeline.
-
-After cloning your ejected repository:
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-2. Set up your environment configuration:
-   - Copy `.env.example` to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - Configure your `.env` file with appropriate values:
-     ```env
-     # Basic Configuration
-     PUBLIC_URL=http://localhost:2368
-     PORT=2368
-
-     # Database Configuration
-     DB_HOST=localhost
-     DB_USER=your_database_user
-     DB_PASSWORD=your_database_password
-     DB_NAME=ghost
-
-     # Mail Configuration (optional)
-     MAILGUN_SMTP_LOGIN=postmaster@your-domain.mailgun.org
-     MAILGUN_SMTP_PASSWORD=your_mailgun_password
-
-     # Cloudinary Configuration (optional)
-     CLOUDINARY_URL=cloudinary://your_api_key:your_api_secret@your_cloud_name
-     CLOUDINARY_FOLDER=ghost-blog-images
-     ```
-
-3. Run post-installation setup:
-   ```bash
-   npm run postinstall
-   ```
-
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
-
-### Requirements
-
-- **Railway Account** for deployment
-- **MySQL Database** (automatically provisioned by Railway)
-- **Cloudinary Account** (optional, falls back to local storage)
-- **Mailgun Account** (optional, for email delivery)
-
-### Commands
-
-- `npm install` - Install dependencies
-- `npm run postinstall` - Run post-installation setup
-- `npm run dev` - Start development server
-- `npm start` - Start production server
-
-<p align="center">
-  <a href="https://funkyton.com/">
-    A template by,
-    <br><br>
-    <picture>
-      <img alt="FUNKYTON logo" src="https://res-5.cloudinary.com/hczpmiapo/image/upload/q_auto/v1/ghost-blog-images/funkyton-logo.png" width=200>
-    </picture>
+  <a href="https://ghost.org/#gh-dark-mode-only" target="_blank">
+    <img src="https://user-images.githubusercontent.com/65487235/157849205-aa24152c-4610-4d7d-b752-3a8c4f9319e6.png" alt="Ghost" width="200px">
   </a>
 </p>
+&nbsp;
+
+<p align="center">
+    <a href="https://ghost.org/">Ghost.org</a> •
+    <a href="https://forum.ghost.org">Forum</a> •
+    <a href="https://ghost.org/docs/">Docs</a> •
+    <a href="https://github.com/TryGhost/Ghost/blob/main/.github/CONTRIBUTING.md">Contributing</a> •
+    <a href="https://twitter.com/ghost">Twitter</a>
+    <br /><br />
+    <a href="https://ghost.org/">
+        <img src="https://img.shields.io/badge/downloads-100M+-brightgreen.svg" alt="Downloads" />
+    </a>
+    <a href="https://github.com/TryGhost/Ghost/releases/">
+        <img src="https://img.shields.io/github/release/TryGhost/Ghost.svg" alt="Latest release" />
+    </a>
+    <a href="https://github.com/TryGhost/Ghost/actions">
+        <img src="https://github.com/TryGhost/Ghost/workflows/CI/badge.svg?branch=main" alt="Build status" />
+    </a>
+    <a href="https://github.com/TryGhost/Ghost/contributors/">
+        <img src="https://img.shields.io/github/contributors/TryGhost/Ghost.svg" alt="Contributors" />
+    </a>
+</p>
+
+&nbsp;
+
+> [!NOTE]
+> Love open source? We're hiring! Ghost is looking staff engineers to [join the team](https://careers.ghost.org) and work with us full-time
+
+<a href="https://ghost.org/"><img src="https://user-images.githubusercontent.com/353959/169805900-66be5b89-0859-4816-8da9-528ed7534704.png" alt="Fiercely independent, professional publishing. Ghost is the most popular open source, headless Node.js CMS which already works with all the tools you know and love." /></a>
+
+&nbsp;
+
+<a href="https://ghost.org/pricing/#gh-light-mode-only" target="_blank"><img src="https://user-images.githubusercontent.com/65487235/157849437-9b8fcc48-1920-4b26-a1e8-5806db0e6bb9.png" alt="Ghost(Pro)" width="165px" /></a>
+<a href="https://ghost.org/pricing/#gh-dark-mode-only" target="_blank"><img src="https://user-images.githubusercontent.com/65487235/157849438-79889b04-b7b6-4ba7-8de6-4c1e4b4e16a5.png" alt="Ghost(Pro)" width="165px" /></a>
+
+The easiest way to get a production instance deployed is with our official **[Ghost(Pro)](https://ghost.org/pricing/)** managed service. It takes about 2 minutes to launch a new site with worldwide CDN, backups, security and maintenance all done for you.
+
+For most people this ends up being the best value option because of [how much time it saves](https://ghost.org/docs/hosting/) — and 100% of revenue goes to the Ghost Foundation; funding the maintenance and further development of the project itself. So you’ll be supporting open source software *and* getting a great service!
+
+&nbsp;
+
+# Quickstart install
+
+If you want to run your own instance of Ghost, in most cases the best way is to use our **CLI tool**
+
+```
+npm install ghost-cli -g
+```
+
+&nbsp;
+
+Then, if installing locally add the `local` flag to get up and running in under a minute - [Local install docs](https://ghost.org/docs/install/local/)
+
+```
+ghost install local
+```
+
+&nbsp;
+
+or on a server run the full install, including automatic SSL setup using LetsEncrypt - [Production install docs](https://ghost.org/docs/install/ubuntu/)
+
+```
+ghost install
+```
+
+&nbsp;
+
+Check out our [official documentation](https://ghost.org/docs/) for more information about our [recommended hosting stack](https://ghost.org/docs/hosting/) & properly [upgrading Ghost](https://ghost.org/docs/update/), plus everything you need to develop your own Ghost [themes](https://ghost.org/docs/themes/) or work with [our API](https://ghost.org/docs/content-api/).
+
+### Contributors & advanced developers
+
+For anyone wishing to contribute to Ghost or to hack/customize core files we recommend following our full development setup guides: [Contributor guide](https://ghost.org/docs/contributing/) • [Developer setup](https://ghost.org/docs/install/source/)
+
+&nbsp;
+
+# Ghost sponsors
+
+A big thanks to our sponsors and partners who make Ghost possible. If you're interested in sponsoring Ghost and supporting the project, please check out our profile on [GitHub sponsors](https://github.com/sponsors/TryGhost) :heart:
+
+**[DigitalOcean](https://m.do.co/c/9ff29836d717)** • **[Fastly](https://www.fastly.com/)** • **[Tinybird](https://tbrd.co/ghost)**
+
+&nbsp;
+
+# Getting help
+
+Everyone can get help and support from a large community of developers over on the [Ghost forum](https://forum.ghost.org/). **Ghost(Pro)** customers have access to 24/7 email support.
+
+To stay up to date with all the latest news and product updates, make sure you [subscribe to our changelog newsletter](https://ghost.org/changelog/) — or follow us [on Twitter](https://twitter.com/Ghost), if you prefer your updates bite-sized and facetious. :saxophone::turtle:
+
+&nbsp;
+
+# Copyright & license
+
+Copyright (c) 2013-2025 Ghost Foundation - Released under the [MIT license](LICENSE).
+Ghost and the Ghost Logo are trademarks of Ghost Foundation Ltd. Please see our [trademark policy](https://ghost.org/trademark/) for info on acceptable usage.

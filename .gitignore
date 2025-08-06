@@ -1,4 +1,4 @@
-/node_modules
-/content/logs/*.log
+node_modules
 .env
 config.production.json
+content/logs

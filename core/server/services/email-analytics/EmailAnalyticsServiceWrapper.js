@@ -6,9 +6,10 @@ class EmailAnalyticsServiceWrapper {
             return;
         }
 
-        const {EmailAnalyticsService} = require('@tryghost/email-analytics-service');
-        const {EmailEventStorage, EmailEventProcessor} = require('@tryghost/email-service');
-        const MailgunProvider = require('@tryghost/email-analytics-provider-mailgun');
+        const EmailAnalyticsService = require('./EmailAnalyticsService');
+        const EmailEventStorage = require('../email-service/EmailEventStorage');
+        const EmailEventProcessor = require('../email-service/EmailEventProcessor');
+        const MailgunProvider = require('./EmailAnalyticsProviderMailgun');
         const {EmailRecipientFailure, EmailSpamComplaintEvent, Email} = require('../../models');
         const StartEmailAnalyticsJobEvent = require('./events/StartEmailAnalyticsJobEvent');
         const domainEvents = require('@tryghost/domain-events');
@@ -142,7 +143,7 @@ class EmailAnalyticsServiceWrapper {
                 this._restartFetch('scheduled backfill');
                 return;
             }
-            
+
             this.fetching = false;
         } catch (e) {
             logging.error(e, 'Error while fetching email analytics');
