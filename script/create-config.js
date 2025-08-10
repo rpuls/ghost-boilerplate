@@ -36,9 +36,10 @@ function createConfig() {
   };
 
   // Mail configuration
-  if (process.env.MAILGUN_SMTP_LOGIN && process.env.MAILGUN_SMTP_PASSWORD) {
+  if (process.env.MAILGUN_SMTP_LOGIN && process.env.MAILGUN_SMTP_PASSWORD && process.env.MAIL_FROM) {
     console.log('MAILGUN_SMTP_LOGIN and MAILGUN_SMTP_PASSWORD found, setting up SMTP mail transport');
     config.mail = {
+      from: process.env.MAIL_FROM,
       transport: 'SMTP',
       options: {
         service: 'Mailgun',
@@ -51,6 +52,7 @@ function createConfig() {
   } else {
     console.log('MAILGUN_SMTP_LOGIN or MAILGUN_SMTP_PASSWORD not found, setting mail transport to Direct');
     config.mail = {
+      from: 'default', // Note: this is probably not right
       transport: 'Direct'
     };
   }
