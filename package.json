@@ -126,7 +126,6 @@
     "body-parser": "1.20.3",
     "bookshelf": "1.2.0",
     "bookshelf-relations": "2.8.0",
-    "bree": "^9.2.4",
     "brute-knex": "4.0.1",
     "bson-objectid": "2.0.4",
     "cache-manager": "4.1.0",
@@ -279,7 +278,7 @@
     "moment": "2.24.0",
     "moment-timezone": "0.5.45",
     "@tryghost/i18n": "file:components/tryghost-i18n-6.0.0.tgz",
-    "bree": "9.2.4"
+    "cron-validate": "1.5.2"
   },
   "nx": {
     "targets": {
