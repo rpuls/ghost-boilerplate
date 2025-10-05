@@ -105,6 +105,10 @@ After cloning your ejected repository:
      # Cloudinary Configuration (optional)
      CLOUDINARY_URL=cloudinary://your_api_key:your_api_secret@your_cloud_name
      CLOUDINARY_FOLDER=ghost-blog-images
+
+     # Webhook Configuration (Cloudflare Access Service Tokens) - optional
+     CLOUDFLARE_WEBHOOK_CLIENT_ID=your_client_id
+     CLOUDFLARE_WEBHOOK_CLIENT_SECRET=your_client_secret
      ```
 
 3. Run post-installation setup:

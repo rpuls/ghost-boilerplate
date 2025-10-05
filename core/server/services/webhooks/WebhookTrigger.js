@@ -123,6 +123,15 @@ class WebhookTrigger {
                 headers['X-Ghost-Signature'] = `sha256=${crypto.createHmac('sha256', secret).update(`${reqPayload}${ts}`).digest('hex')}, t=${ts}`;
             }
 
+            // Add Cloudflare Access Service Token authentication
+            const cfClientId = process.env.CLOUDFLARE_WEBHOOK_CLIENT_ID;
+            const cfClientSecret = process.env.CLOUDFLARE_WEBHOOK_CLIENT_SECRET;
+
+            if (cfClientId && cfClientSecret) {
+                headers['CF-Access-Client-Id'] = cfClientId;
+                headers['CF-Access-Client-Secret'] = cfClientSecret;
+            }
+
             const opts = {
                 body: reqPayload,
                 headers,
