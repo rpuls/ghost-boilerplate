@@ -59,10 +59,19 @@ NODE_ENV="production"
 # Cloudinary Configuration (optional)
 CLOUDINARY_URL="" # Example: cloudinary://<id>:<secret>@<cloud-name>
 
-# Mailgun Configuration (optional)
-MAILGUN_SMTP_LOGIN="" # Example: your@mail.com
+# Mailgun Configuration (recommended for member signups & magic links)
+# Option 1: Mailgun API (RECOMMENDED - more reliable on Railway)
+MAILGUN_API_KEY="" # Example: key-xxxxxxxxxxxxx
+MAILGUN_DOMAIN="" # Example: mg.yourdomain.com or yourdomain.com
+
+# Option 2: Mailgun SMTP (fallback if API not configured)
+MAILGUN_SMTP_LOGIN="" # Example: postmaster@yourdomain.com
 MAILGUN_SMTP_PASSWORD=""
+MAILGUN_SMTP_HOST="" # Optional: smtp.mailgun.org (default)
+MAILGUN_SMTP_PORT="" # Optional: 2525 (default), also try 587
 ```
+
+**Important:** The Mailgun API configuration is preferred over SMTP as it's more reliable for member signups, magic links, and password resets. SMTP ports may be blocked by some hosting providers.
 
 ### Local Development (Optional)
 

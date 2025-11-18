@@ -36,20 +36,47 @@ function createConfig() {
   };
 
   // Mail configuration
-  if (process.env.MAILGUN_SMTP_LOGIN && process.env.MAILGUN_SMTP_PASSWORD) {
-    console.log('MAILGUN_SMTP_LOGIN and MAILGUN_SMTP_PASSWORD found, setting up SMTP mail transport');
+  // Try Mailgun API first (preferred, same as newsletters)
+  if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
+    console.log('MAILGUN_API_KEY and MAILGUN_DOMAIN found, setting up Mailgun API transport');
     config.mail = {
-      transport: 'SMTP',
+      transport: 'Mailgun',
       options: {
-        service: 'Mailgun',
         auth: {
-          user: process.env.MAILGUN_SMTP_LOGIN,
-          pass: process.env.MAILGUN_SMTP_PASSWORD
+          api_key: process.env.MAILGUN_API_KEY,
+          domain: process.env.MAILGUN_DOMAIN
         }
       }
     };
-  } else {
-    console.log('MAILGUN_SMTP_LOGIN or MAILGUN_SMTP_PASSWORD not found, setting mail transport to Direct');
+  } 
+  // Fall back to SMTP if API credentials not available
+  else if (process.env.MAILGUN_SMTP_LOGIN && process.env.MAILGUN_SMTP_PASSWORD) {
+    console.log('MAILGUN_SMTP_LOGIN and MAILGUN_SMTP_PASSWORD found, setting up SMTP mail transport');
+    const smtpHost = process.env.MAILGUN_SMTP_HOST || 'smtp.mailgun.org';
+    const smtpPort = parseInt(process.env.MAILGUN_SMTP_PORT || '2525', 10);
+    
+    console.log(`Using SMTP host: ${smtpHost}, port: ${smtpPort}`);
+    
+    config.mail = {
+      transport: 'SMTP',
+      options: {
+        host: smtpHost,
+        port: smtpPort,
+        secure: false,
+        auth: {
+          user: process.env.MAILGUN_SMTP_LOGIN,
+          pass: process.env.MAILGUN_SMTP_PASSWORD
+        },
+        requireTLS: true,
+        tls: {
+          rejectUnauthorized: true
+        }
+      }
+    };
+  } 
+  // Fall back to Direct mode if no mail credentials
+  else {
+    console.log('No Mailgun credentials found, setting mail transport to Direct');
     config.mail = {
       transport: 'Direct'
     };
