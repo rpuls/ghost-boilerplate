@@ -52,6 +52,10 @@ const messages = {
     thumbnail: {
         missingFile: 'Please select a thumbnail.',
         invalidFile: 'Please select a valid thumbnail.'
+    },
+    files: {
+        missingFile: 'Please select a file.',
+        invalidFile: 'The file type you uploaded is not supported. You can zip your file and upload it as a .zip.'
     }
 };
 
@@ -164,7 +168,7 @@ const checkFileIsValid = (fileData, types, extensions) => {
 /**
  *
  * @param {String} filepath
- * @returns {String | null}
+ * @returns {Promise<String | null>}
  *
  * Reads the SVG file, sanitizes it, and writes the sanitized content back to the file.
  * Returns the sanitized content or null if the SVG could not be sanitized.
@@ -216,7 +220,7 @@ const sanitizeSvgContent = (content) => {
  *
  * @param {String} filepath
  * @param {Boolean} isZipped
- * @returns {String | null}
+ * @returns {Promise<String | null>}
  *
  * Reads .svg or .svgz files and returns the content as a string.
  *
@@ -356,11 +360,48 @@ const mediaValidation = function ({type}) {
     };
 };
 
+/**
+ * Extension-only validation for file uploads.
+ * This validates the extension against the allowlist. 
+ * We are not validating the MIME type because it is unreliable and irrelevant as 
+ * we derive the storage content type from the extension via getStorageContentType().
+ *
+ * @param {Object} options
+ * @param {String} options.type - config key under uploads (e.g. 'files')
+ * @returns {import('express').RequestHandler}
+ */
+const fileValidation = function ({type}) {
+    return function fileUploadValidation(req, res, next) {
+        const extensions = (config.get('uploads')[type] && config.get('uploads')[type].extensions) || [];
+
+        req.file = req.file || {};
+        req.file.name = req.file.originalname;
+        req.file.type = req.file.mimetype;
+
+        if (!checkFileExists(req.file)) {
+            return next(new errors.ValidationError({
+                message: tpl(messages[type].missingFile)
+            }));
+        }
+
+        req.file.ext = path.extname(req.file.name).toLowerCase();
+
+        if (!extensions.includes(req.file.ext)) {
+            return next(new errors.UnsupportedMediaTypeError({
+                message: tpl(messages[type].invalidFile, {extensions: extensions})
+            }));
+        }
+
+        next();
+    };
+};
+
 module.exports = {
     single,
     media,
     validation,
-    mediaValidation
+    mediaValidation,
+    fileValidation
 };
 
 // Exports for testing only

@@ -24,7 +24,7 @@ const messages = {
     },
     stripeCustomerNotFound: {
         context: 'Missing Stripe customer.',
-        help: 'Make sure you’re connected to the correct Stripe Account.'
+        help: 'Make sure you\'re connected to the correct Stripe Account.'
     },
     resourceNotFound: '{resource} not found.'
 };
@@ -381,10 +381,12 @@ const controller = {
                     return `members.${datetime}.csv`;
                 }
             },
+            contentType: 'text/csv',
             cacheInvalidate: false
         },
         response: {
-            format: 'plain'
+            format: 'plain',
+            stream: true
         },
         permissions: {
             method: 'browse'
@@ -426,7 +428,7 @@ const controller = {
             if (frame.user) {
                 email = frame.user.get('email');
             } else {
-                email = await models.User.getOwnerUser().get('email');
+                email = (await models.User.getOwnerUser()).get('email');
             }
 
             return membersService.processImport({
@@ -507,6 +509,52 @@ const controller = {
         },
         async query(frame) {
             return await membersService.api.events.getEventTimeline(frame.options);
+        }
+    },
+
+    deleteEmailSuppression: {
+        statusCode: 204,
+        headers: {
+            cacheInvalidate: false
+        },
+        options: [
+            'id'
+        ],
+        validation: {
+            options: {
+                id: {
+                    required: true
+                }
+            }
+        },
+        permissions: {
+            method: 'edit'
+        },
+        async query(frame) {
+            const emailSuppressionList = require('../../services/email-suppression-list');
+
+            // Get the member first to retrieve their email
+            const member = await membersService.api.memberBREADService.read({id: frame.options.id}, {});
+
+            if (!member) {
+                throw new errors.NotFoundError({
+                    message: tpl(messages.memberNotFound)
+                });
+            }
+
+            // Remove the email from the suppression list
+            const didRemoveSuppression = await emailSuppressionList.removeEmail(member.email);
+
+            if (!didRemoveSuppression) {
+                throw new errors.InternalServerError({
+                    message: 'Failed to remove email suppression.'
+                });
+            }
+
+            // Update the member to re-enable email
+            await membersService.api.memberBREADService.edit({email_disabled: false}, {id: frame.options.id});
+
+            return null;
         }
     }
 };

@@ -1,16 +1,16 @@
 const adapterManager = require('../../adapter-manager');
-const createSessionService = require('@tryghost/session-service');
-const sessionFromToken = require('@tryghost/mw-session-from-token');
+const createSessionService = require('./session-service');
+const sessionFromToken = require('./session-from-token');
 const createSessionMiddleware = require('./middleware');
 const settingsCache = require('../../../../shared/settings-cache');
 const {GhostMailer} = require('../../mail');
 const {t} = require('../../i18n');
-const labs = require('../../../../shared/labs');
 
 const expressSession = require('./express-session');
 
 const models = require('../../../models');
 const urlUtils = require('../../../../shared/url-utils');
+const config = require('../../../../shared/config');
 const {blogIcon} = require('../../../lib/image');
 const url = require('url');
 
@@ -18,8 +18,18 @@ const url = require('url');
 /* eslint-disable max-lines */
 
 function getOriginOfRequest(req) {
-    const origin = req.get('origin');
-    const referrer = req.get('referrer') || urlUtils.getAdminUrl() || urlUtils.getSiteUrl();
+    const getHeader = (name) => {
+        if (req && typeof req.get === 'function') {
+            return req.get(name);
+        }
+
+        const headers = req && req.headers ? req.headers : {};
+        const normalizedName = name.toLowerCase();
+        return headers[normalizedName];
+    };
+
+    const origin = getHeader('origin');
+    const referrer = getHeader('referrer') || getHeader('referer') || urlUtils.getAdminUrl() || urlUtils.getSiteUrl();
 
     if (!origin && !referrer || origin === 'null') {
         return null;
@@ -47,13 +57,16 @@ const sessionService = createSessionService({
     getSettingsCache(key) {
         return settingsCache.get(key);
     },
+    isStaffDeviceVerificationDisabled() {
+        // This config flag is set to true by default, so we need to check for false
+        return config.get('security:staffDeviceVerification') !== true;
+    },
     getBlogLogo() {
         return blogIcon.getIconUrl({absolute: true, fallbackToDefault: false})
             || 'https://static.ghost.org/v4.0.0/images/ghost-orb-1.png';
     },
     mailer,
     urlUtils,
-    labs,
     t
 });
 
@@ -71,5 +84,15 @@ module.exports.createSessionFromToken = () => {
     });
 };
 
+module.exports.initSession = async function initSession(req, res, next) {
+    try {
+        await expressSession.getSession(req, res);
+        next();
+    } catch (err) {
+        next(err);
+    }
+};
+
+module.exports.getOriginOfRequest = getOriginOfRequest;
 module.exports.sessionService = sessionService;
 module.exports.deleteAllSessions = expressSession.deleteAllSessions;

@@ -81,12 +81,24 @@ module.exports = {
         return apiFramework.pipeline(require('./announcements'), localUtils);
     },
 
+    get automatedEmails() {
+        return apiFramework.pipeline(require('./automated-emails'), localUtils);
+    },
+
+    get automatedEmailDesign() {
+        return apiFramework.pipeline(require('./automated-email-design'), localUtils);
+    },
+
     get membersStripeConnect() {
         return apiFramework.pipeline(require('./members-stripe-connect'), localUtils);
     },
 
     get members() {
         return apiFramework.pipeline(require('./members'), localUtils);
+    },
+
+    get memberCommenting() {
+        return apiFramework.pipeline(require('./member-commenting'), localUtils);
     },
 
     get offers() {
@@ -181,6 +193,14 @@ module.exports = {
         return apiFramework.pipeline(require('./custom-theme-settings'), localUtils);
     },
 
+    get tinybird() {
+        return apiFramework.pipeline(require('./tinybird'), localUtils);
+    },
+
+    get featurebase() {
+        return apiFramework.pipeline(require('./featurebase'), localUtils);
+    },
+
     get serializers() {
         return require('./utils/serializers');
     },
@@ -197,12 +217,16 @@ module.exports = {
         return apiFramework.pipeline(require('./comment-replies'), localUtils);
     },
 
-    get links() {
-        return apiFramework.pipeline(require('./links'), localUtils);
+    get commentReports() {
+        return apiFramework.pipeline(require('./comment-reports'), localUtils);
     },
 
-    get mailEvents() {
-        return apiFramework.pipeline(require('./mail-events'), localUtils);
+    get commentLikes() {
+        return apiFramework.pipeline(require('./comment-likes'), localUtils);
+    },
+
+    get links() {
+        return apiFramework.pipeline(require('./links'), localUtils);
     },
 
     get recommendations() {
@@ -211,6 +235,10 @@ module.exports = {
 
     get incomingRecommendations() {
         return apiFramework.pipeline(require('./incoming-recommendations'), localUtils);
+    },
+
+    get searchIndex() {
+        return apiFramework.pipeline(require('./search-index'), localUtils);
     },
 
     /**
@@ -261,7 +289,15 @@ module.exports = {
         return apiFramework.pipeline(require('./feedback-members'), localUtils, 'members');
     },
 
+    get giftsMembers() {
+        return apiFramework.pipeline(require('./gifts-members'), localUtils, 'members');
+    },
+
     get recommendationsPublic() {
         return apiFramework.pipeline(require('./recommendations-public'), localUtils, 'content');
+    },
+
+    get searchIndexPublic() {
+        return apiFramework.pipeline(require('./search-index-public'), localUtils, 'content');
     }
 };

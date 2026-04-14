@@ -3,17 +3,17 @@
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://res.cloudinary.com/hczpmiapo/image/upload/v1731276441/Static%20assets/Logos/ghost_vgwnyq.png">
       <source media="(prefers-color-scheme: light)" srcset="https://res.cloudinary.com/hczpmiapo/image/upload/v1731276441/Static%20assets/Logos/ghost_vgwnyq.png">
-      <img alt="Ghost logo" src="https://res.cloudinary.com/hczpmiapo/image/upload/v1731276441/Static%20assets/Logos/ghost_vgwnyq.png" width=100>
+      <img alt="Ghost logo" src="https://res.cloudinary.com/hczpmiapo/image/upload/v1731276441/Static%20assets/Logos/ghost_vgwnyq.png" width="100">
     </picture>
   </a>
   <a href="https://railway.app/deploy/ZQcedl?referralCode=-Yg50p">
     <picture>
       <source media="(prefers-color-scheme: light)" srcset="https://railway.app/brand/logo-light.svg">
       <source media="(prefers-color-scheme: dark)" srcset="https://railway.app/brand/logo-dark.svg">
-      <img alt="Railway logo" src="https://railway.app/brand/logo-light.svg" width=100>
+      <img alt="Railway logo" src="https://railway.app/brand/logo-light.svg" width="100">
     </picture>
   </a>
-</p> 
+</p>
 
 <h2 align="center">
   Ghost Blog Starter<br>
@@ -21,135 +21,145 @@
 </h2>
 
 <p align="center">
-  A professional publishing platform built on Node.js, featuring MySQL database support, Cloudinary image storage, and Mailgun email integration
+  A professional publishing platform built on Node.js, featuring MySQL database support, Cloudinary image storage, and Railway-friendly source deployment
 </p>
 
 ## About this boilerplate
 
-This boilerplate is a pre-configured Ghost blog setup optimized for deployment on [Railway](https://railway.app?referralCode=-Yg50p). It includes a complete backend and admin dashboard, with support for MySQL database, Cloudinary image storage, and Mailgun email integration. The project is ready to use as-is when hosted on Railway.
+This boilerplate is a pre-configured Ghost blog setup optimized for deployment on [Railway](https://railway.app?referralCode=-Yg50p). It is based on the published standalone Ghost source package, includes the full backend and admin dashboard, and keeps the simple Railway deployment flow from the earlier template while updating the codebase to Ghost 6.
 
-Updated to `version 5.112.0` 🥳
+Updated to `version 6.28.0`
 
 ## Preconfigured Features & Integrations
 
-- **MySQL Database**: Robust and reliable database storage
-- **Cloudinary Integration**: Cloud-based image storage with local fallback
-- **Mailgun Integration**: Professional email delivery service
-- **Admin Dashboard**: Full-featured content management system
-- **SEO Optimized**: Built-in SEO tools and features
+- **Ghost 6 Source Build**: Runs directly from source at the repo root, so Railway users can update by switching branches without changing root directory settings
+- **MySQL Database**: Ready for Railway MySQL or local MySQL
+- **Cloudinary Integration**: Cloud-based image storage with local fallback when `CLOUDINARY_URL` is not set
+- **Admin Dashboard**: Full Ghost admin interface included
+- **Railway-Friendly Bootstrap**: `npm start` regenerates `config.production.json` automatically before boot
 
-### Railway Setup (Recommended)
+### Railway Setup
 
-1. Use the one-click deploy ate:
+1. Use the one-click deploy link:
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/deploy/ZQcedl?referralCode=-Yg50p)
 
-2. Railway will automatically configure the following environment variables:
+2. Railway should provide or let you configure:
+
 ```env
-DB_HOST="${MySQL.MYSQLHOST}"
-DB_NAME="${MySQL.MYSQLDATABASE}"
-DB_USER="${MySQL.MYSQLUSER}"
-DB_PASSWORD="${MySQL.MYSQLPASSWORD}"
-PUBLIC_URL="https://${RAILWAY_PUBLIC_DOMAIN}"
+DB_HOST="${{MySQL.MYSQLHOST}}"
+DB_NAME="${{MySQL.MYSQLDATABASE}}"
+DB_USER="${{MySQL.MYSQLUSER}}"
+DB_PASSWORD="${{MySQL.MYSQLPASSWORD}}"
+PUBLIC_URL="https://${{RAILWAY_PUBLIC_DOMAIN}}"
 NODE_ENV="production"
 ```
 
-3. Optional: Configure additional integrations:
+3. Optional integrations:
+
 ```env
-# Cloudinary Configuration (optional)
-CLOUDINARY_URL="" # Example: cloudinary://<id>:<secret>@<cloud-name>
+# Cloudinary Configuration
+CLOUDINARY_URL="" # Example: cloudinary://<api_key>:<api_secret>@<cloud_name>
+CLOUDINARY_FOLDER="ghost-blog-images"
 
-# Mailgun Configuration (recommended for member signups & magic links)
-# Option 1: Mailgun API (RECOMMENDED - more reliable on Railway)
-MAILGUN_API_KEY="" # Example: key-xxxxxxxxxxxxx
-MAILGUN_DOMAIN="" # Example: mg.yourdomain.com or yourdomain.com
+# Mail Configuration
+MAIL_FROM="" # Optional. Falls back to MAILGUN_SMTP_LOGIN or noreply@MAILGUN_DOMAIN
+MAILGUN_API_KEY=""
+MAILGUN_DOMAIN=""
 
-# Option 2: Mailgun SMTP (fallback if API not configured)
-MAILGUN_SMTP_LOGIN="" # Example: postmaster@yourdomain.com
+# SMTP fallback
+MAILGUN_SMTP_LOGIN=""
 MAILGUN_SMTP_PASSWORD=""
-MAILGUN_SMTP_HOST="" # Optional: smtp.mailgun.org (default)
-MAILGUN_SMTP_PORT="" # Optional: 2525 (default), also try 587
+MAILGUN_SMTP_HOST=""
+MAILGUN_SMTP_PORT=""
 ```
 
-**Important:** The Mailgun API configuration is preferred over SMTP as it's more reliable for member signups, magic links, and password resets. SMTP ports may be blocked by some hosting providers.
+4. Recommended Railway start command:
 
-### Local Development (Optional)
+```bash
+npm start
+```
 
-While the project is ready to use as-is on Railway, if you need to make customizations:
+If an older deployment is still using:
 
-1. Deploy to Railway first (using button above)
-2. Use Railway's "Eject to Git Repository" feature to create your own repository
-3. Clone your ejected repository locally
+```bash
+npm run postinstall && npm run start
+```
 
-This approach ensures your local development remains connected to Railway's CI/CD pipeline.
+that should still work too. New projects should use `npm start`.
 
-After cloning your ejected repository:
+### Local Development
 
 1. Install dependencies:
-   ```bash
-   npm install
-   ```
 
-2. Set up your environment configuration:
-   - Copy `.env.example` to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - Configure your `.env` file with appropriate values:
-     ```env
-     # Basic Configuration
-     PUBLIC_URL=http://localhost:2368
-     PORT=2368
+```bash
+npm install
+```
 
-     # Database Configuration
-     DB_HOST=localhost
-     DB_USER=your_database_user
-     DB_PASSWORD=your_database_password
-     DB_NAME=ghost
+2. Copy `.env.example` to `.env`
 
-     # Mail Configuration (optional)
-     MAILGUN_SMTP_LOGIN=postmaster@your-domain.mailgun.org
-     MAILGUN_SMTP_PASSWORD=your_mailgun_password
+3. Configure your local database and optional Cloudinary settings
 
-     # Cloudinary Configuration (optional)
-     CLOUDINARY_URL=cloudinary://your_api_key:your_api_secret@your_cloud_name
-     CLOUDINARY_FOLDER=ghost-blog-images
+4. Initialize the database once:
 
-     # Webhook Configuration (Cloudflare Access Service Tokens) - optional
-     CLOUDFLARE_WEBHOOK_CLIENT_ID=your_client_id
-     CLOUDFLARE_WEBHOOK_CLIENT_SECRET=your_client_secret
-     ```
+```bash
+NODE_ENV=production npx knex-migrator-init
+```
 
-3. Run post-installation setup:
-   ```bash
-   npm run postinstall
-   ```
+Windows PowerShell:
 
-4. Start the development server:
-   ```bash
-   npm run dev
-   ```
+```powershell
+$env:NODE_ENV='production'
+npx.cmd knex-migrator-init
+```
 
-### Requirements
+5. Start Ghost:
 
-- **Railway Account** for deployment
-- **MySQL Database** (automatically provisioned by Railway)
-- **Cloudinary Account** (optional, falls back to local storage)
-- **Mailgun Account** (optional, for email delivery)
+```bash
+npm start
+```
+
+For development mode:
+
+```bash
+npm run dev
+```
+
+### Notes for Existing Template Users
+
+This branch is designed so existing Railway projects based on the older template can update without needing to reconfigure Railway root directories. The intended upgrade flow is:
+
+- switch the Railway project to this branch
+- keep the same env var contract
+- point the app at an upgraded or migrated MySQL database
+- redeploy
+
+If your live project is already using the older start command, it should continue to boot after upgrading. For new projects, use `npm start`.
+
+### Current Validation Status
+
+This Ghost 6 setup has been validated on Ghost 6 with MySQL and Railway:
+
+- production boot succeeded
+- `/` returned `200 OK`
+- `/ghost/` returned `200 OK`
+- `/ghost/api/admin/site/` returned `200 OK`
+- Cloudinary image upload works
+- email delivery works
 
 ### Commands
 
 - `npm install` - Install dependencies
-- `npm run postinstall` - Run post-installation setup
-- `npm run dev` - Start development server
-- `npm start` - Start production server
+- `npm run postinstall` - Generate runtime config and verify bootstrap files
+- `npm start` - Regenerate config and start Ghost in production mode
+- `npm run dev` - Start Ghost in development mode
 
 <p align="center">
   <a href="https://funkyton.com/">
     A template by,
     <br><br>
     <picture>
-      <img alt="FUNKYTON logo" src="https://res-5.cloudinary.com/hczpmiapo/image/upload/q_auto/v1/ghost-blog-images/funkyton-logo.png" width=200>
+      <img alt="FUNKYTON logo" src="https://res-5.cloudinary.com/hczpmiapo/image/upload/q_auto/v1/ghost-blog-images/funkyton-logo.png" width="200">
     </picture>
   </a>
 </p>

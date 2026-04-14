@@ -1,0 +1,1 @@
+import{j as a}from"./index-fwVn0j7Q.js";const t=({children:e,...s})=>a.jsx("div",{className:"size-full",children:a.jsx("div",{className:"relative mx-auto flex h-full max-w-page flex-col",...s,children:e})});export{t as M};

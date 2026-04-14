@@ -1,3 +1,13 @@
 {
-    "ignore": ["*.test.js", "**/content/public/**", "**/core/built/**", ".yarncache/**"]
+  "watch": [
+    ".",
+    "../*"
+  ],
+  "ignore": [
+    "../admin/**",
+    "content/**",
+    "core/built/**"
+  ],
+  "ext": "js,mjs,cjs,json,ts,tsx",
+  "exec": "node --import=tsx"
 }

@@ -1,56 +1,13 @@
-// scripts/postinstall.js
+#!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
-// Function to recursively list directory contents
-const listDirectory = (dir, prefix = '') => {
-  const items = fs.readdirSync(dir);
-  items.forEach(item => {
-    const itemPath = path.join(dir, item);
-    console.log(`${prefix}${item}`);
-    if (fs.lstatSync(itemPath).isDirectory()) {
-      listDirectory(itemPath, `${prefix}  `);
-    }
-  });
-};
+const createConfigPath = path.join(__dirname, 'create-config.js');
+const adapterPath = path.join(__dirname, '..', 'content', 'adapters', 'storage', 'cloudinary-storage');
 
-// Log environment and paths
-console.log('\nEnvironment Info:');
-console.log('----------------');
-console.log('Current working directory:', process.cwd());
-console.log('__dirname:', __dirname);
+console.log('Ghost 6 Railway postinstall');
+console.log(`create-config.js: ${fs.existsSync(createConfigPath) ? 'present' : 'missing'}`);
+console.log(`Cloudinary adapter: ${fs.existsSync(adapterPath) ? 'present' : 'missing'}`);
 
-const adapterPath = path.join(__dirname, '..', 'content', 'adapters', 'storage', 'cloudinary');
-console.log('\nAdapter path:', adapterPath);
-console.log('Adapter exists:', fs.existsSync(adapterPath));
-
-if (fs.existsSync(adapterPath)) {
-  console.log('\nAdapter directory contents:');
-  console.log('-------------------------');
-  listDirectory(adapterPath);
-}
-
-// Log full content/adapters directory
-const adaptersPath = path.join(__dirname, '..', 'content', 'adapters');
-console.log('\nFull content/adapters directory:', adaptersPath);
-console.log('------------------------------');
-if (fs.existsSync(adaptersPath)) {
-  listDirectory(adaptersPath);
-} else {
-  console.log('Adapters directory does not exist!');
-}
-
-// Call create-config.js script to set up Ghost configuration
-const { exec } = require('child_process');
-exec('node script/create-config.js', (error, stdout, stderr) => {
-  if (error) {
-    console.error(`Error executing create-config.js: ${error.message}`);
-    return;
-  }
-  if (stderr) {
-    console.error(`stderr: ${stderr}`);
-    return;
-  }
-  console.log(`stdout: ${stdout}`);
-});
+require('./create-config');

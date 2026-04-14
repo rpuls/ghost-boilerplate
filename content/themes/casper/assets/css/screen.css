@@ -1719,13 +1719,13 @@ iframe.instagram-media + script + :not([id]) {
     letter-spacing: 0.2px;
     text-align: left;
     text-transform: uppercase;
-    background-color: color-mod(var(--color-wash) l(+4%));
+    background-color: color-mod(var(--color-wash) lightness(97%));
 }
 
 .gh-content table:not(.gist table) th,
 .gh-content table:not(.gist table) td {
     padding: 6px 12px;
-    border: color-mod(var(--color-wash) l(-1%) s(-5%)) 1px solid;
+    border: color-mod(var(--color-wash) lightness(92%) saturation(39%)) 1px solid;
 }
 
 
@@ -1948,7 +1948,7 @@ iframe.instagram-media + script + :not([id]) {
 
 .author-profile-meta {
     display: flex;
-    gap: 10px;
+    gap: 12px;
 }
 
 .author-profile-social-link {
@@ -2193,7 +2193,7 @@ html.dark-mode .post-card-image {
 }
 
 html.dark-mode :is(.post-card-tags, .post-card-meta, .article-tag a, .byline-meta-content, .pagination .page-number) {
-    color: color-mod(var(--color-secondary-text) l(-22%));
+    color: var(--color-secondary-text);
 }
 
 html.dark-mode .post-card-featured {
@@ -2299,12 +2299,12 @@ html.dark-mode .gh-content table:not(.gist table) td:last-child {
 
 html.dark-mode .gh-content table:not(.gist table) th {
     color: rgba(255, 255, 255, 0.85);
-    background-color: color-mod(var(--color-darkmode) l(+8%));
+    background-color: color-mod(var(--color-darkmode) lightness(17%));
 }
 
 html.dark-mode .gh-content table:not(.gist table) th,
 html.dark-mode .gh-content table:not(.gist table) td {
-    border: color-mod(var(--color-darkmode) l(+8%)) 1px solid;
+    border: color-mod(var(--color-darkmode) lightness(17%)) 1px solid;
 }
 
 html.dark-mode .gh-content :is(input, textarea) {
@@ -2387,7 +2387,7 @@ html.dark-mode .footer-cta-title {
     }
 
     html.auto-color :is(.post-card-tags, .post-card-meta, .article-tag a, .byline-meta-content, .pagination .page-number) {
-        color: color-mod(var(--color-secondary-text) l(-22%));
+        color: var(--color-secondary-text);
     }
 
     html.auto-color .post-card-featured {
@@ -2493,12 +2493,12 @@ html.dark-mode .footer-cta-title {
 
     html.auto-color .gh-content table:not(.gist table) th {
         color: rgba(255, 255, 255, 0.85);
-        background-color: color-mod(var(--color-darkmode) l(+8%));
+        background-color: color-mod(var(--color-darkmode) lightness(17%));
     }
 
     html.auto-color .gh-content table:not(.gist table) th,
     html.auto-color .gh-content table:not(.gist table) td {
-        border: color-mod(var(--color-darkmode) l(+8%)) 1px solid;
+        border: color-mod(var(--color-darkmode) lightness(17%)) 1px solid;
     }
 
     html.auto-color .gh-content :is(input, textarea) {

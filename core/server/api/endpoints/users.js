@@ -6,7 +6,8 @@ const dbBackup = require('../../data/db/backup');
 const auth = require('../../services/auth');
 const apiMail = require('./index').mail;
 const apiSettings = require('./index').settings;
-const UsersService = require('../../services/Users');
+const {rejectAdminApiRestrictedFieldsTransformer} = require('./utils/api-filter-utils');
+const UsersService = require('../../services/users');
 const userService = new UsersService({dbBackup, models, auth, apiMail, apiSettings});
 const ALLOWED_INCLUDES = ['count.posts', 'permissions', 'roles', 'roles.permissions'];
 const UNSAFE_ATTRS = ['status', 'roles'];
@@ -53,6 +54,13 @@ function shouldInvalidateCacheAfterChange(model) {
         'location',
         'facebook',
         'twitter',
+        'mastodon',
+        'youtube',
+        'linkedin',
+        'bluesky',
+        'instagram',
+        'tiktok',
+        'threads',
         'status',
         'visibility',
         'meta_title',
@@ -99,7 +107,11 @@ const controller = {
         },
         permissions: true,
         query(frame) {
-            return models.User.findPage(frame.options);
+            const options = {
+                ...frame.options,
+                mongoTransformer: rejectAdminApiRestrictedFieldsTransformer
+            };
+            return models.User.findPage(options);
         }
     },
 
@@ -109,7 +121,6 @@ const controller = {
         },
         options: [
             'include',
-            'filter',
             'fields',
             'debug'
         ],
@@ -127,17 +138,15 @@ const controller = {
             }
         },
         permissions: true,
-        query(frame) {
-            return models.User.findOne(frame.data, frame.options)
-                .then((model) => {
-                    if (!model) {
-                        return Promise.reject(new errors.NotFoundError({
-                            message: tpl(messages.userNotFound)
-                        }));
-                    }
-
-                    return model;
+        async query(frame) {
+            const model = await models.User.findOne(frame.data, frame.options);
+            if (!model) {
+                throw new errors.NotFoundError({
+                    message: tpl(messages.userNotFound)
                 });
+            }
+
+            return model;
         }
     },
 
@@ -162,21 +171,19 @@ const controller = {
         permissions: {
             unsafeAttrs: UNSAFE_ATTRS
         },
-        query(frame) {
-            return models.User.edit(frame.data.users[0], frame.options)
-                .then((model) => {
-                    if (!model) {
-                        return Promise.reject(new errors.NotFoundError({
-                            message: tpl(messages.userNotFound)
-                        }));
-                    }
-
-                    if (shouldInvalidateCacheAfterChange(model)) {
-                        frame.setHeader('X-Cache-Invalidate', '/*');
-                    }
-
-                    return model;
+        async query(frame) {
+            const model = await models.User.edit(frame.data.users[0], frame.options);
+            if (!model) {
+                throw new errors.NotFoundError({
+                    message: tpl(messages.userNotFound)
                 });
+            }
+
+            if (shouldInvalidateCacheAfterChange(model)) {
+                frame.setHeader('X-Cache-Invalidate', '/*');
+            }
+
+            return model;
         }
     },
 
@@ -196,11 +203,13 @@ const controller = {
         },
         permissions: true,
         async query(frame) {
-            return userService.destroyUser(frame.options).catch((err) => {
-                return Promise.reject(new errors.NoPermissionError({
+            try {
+                return userService.destroyUser(frame.options);
+            } catch (err) {
+                throw new errors.NoPermissionError({
                     err: err
-                }));
-            });
+                });
+            }
         }
     },
 
@@ -233,11 +242,9 @@ const controller = {
         headers: {
             cacheInvalidate: false
         },
-        permissions(frame) {
-            return models.Role.findOne({name: 'Owner'})
-                .then((ownerRole) => {
-                    return permissionsService.canThis(frame.options.context).assign.role(ownerRole);
-                });
+        async permissions(frame) {
+            const ownerRole = await models.Role.findOne({name: 'Owner'});
+            return permissionsService.canThis(frame.options.context).assign.role(ownerRole);
         },
         query(frame) {
             return models.User.transferOwnership(frame.data.owner[0], frame.options);
@@ -280,11 +287,10 @@ const controller = {
             }
         },
         permissions: permissionOnlySelf,
-        query(frame) {
+        async query(frame) {
             const targetId = getTargetId(frame);
-            return fetchOrCreatePersonalToken(targetId).then((model) => {
-                return models.ApiKey.refreshSecret(model.toJSON(), Object.assign({}, {id: model.id}));
-            });
+            const model = await fetchOrCreatePersonalToken(targetId);
+            return models.ApiKey.refreshSecret(model.toJSON(), Object.assign({}, {id: model.id}));
         }
     }
 };

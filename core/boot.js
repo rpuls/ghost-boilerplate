@@ -64,7 +64,7 @@ function notifyServerReady(error) {
   * @param {object} options.config
   */
 async function initDatabase({config}) {
-    const DatabaseStateManager = require('./server/data/db/DatabaseStateManager');
+    const DatabaseStateManager = require('./server/data/db/database-state-manager');
     const dbStateManager = new DatabaseStateManager({knexMigratorFilePath: config.get('paths:appRoot')});
     await dbStateManager.makeReady();
 
@@ -93,6 +93,12 @@ async function initCore({ghostServer, config, frontend}) {
     const models = require('./server/models');
     models.init();
     debug('End: models');
+
+    // Limit service is booted before settings, so that limits are available for calculated settings
+    debug('Begin: limits');
+    const limits = require('./server/services/limits');
+    await limits.init();
+    debug('End: limits');
 
     // Settings are a core concept we use settings to store key-value pairs used in critical pathways as well as public data like the site title
     debug('Begin: settings');
@@ -309,11 +315,9 @@ async function initServices() {
     const members = require('./server/services/members');
     const tiers = require('./server/services/tiers');
     const permissions = require('./server/services/permissions');
-    const xmlrpc = require('./server/services/xmlrpc');
+    const indexnow = require('./server/services/indexnow');
     const slack = require('./server/services/slack');
     const webhooks = require('./server/services/webhooks');
-    const limits = require('./server/services/limits');
-    const apiVersionCompatibility = require('./server/services/api-version-compatibility');
     const scheduling = require('./server/adapters/scheduling');
     const comments = require('./server/services/comments');
     const staffService = require('./server/services/staff');
@@ -325,22 +329,18 @@ async function initServices() {
     const emailService = require('./server/services/email-service');
     const emailAnalytics = require('./server/services/email-analytics');
     const mentionsService = require('./server/services/mentions');
-    const mentionsEmailReport = require('./server/services/mentions-email-report');
     const tagsPublic = require('./server/services/tags-public');
     const postsPublic = require('./server/services/posts-public');
     const slackNotifications = require('./server/services/slack-notifications');
     const mediaInliner = require('./server/services/media-inliner');
-    const mailEvents = require('./server/services/mail-events');
     const donationService = require('./server/services/donations');
+    const giftService = require('./server/services/gifts');
     const recommendationsService = require('./server/services/recommendations');
     const emailAddressService = require('./server/services/email-address');
     const statsService = require('./server/services/stats');
+    const explorePingService = require('./server/services/explore-ping');
 
     const urlUtils = require('./shared/url-utils');
-
-    // NOTE: limits service has to be initialized first
-    // in case it limits initialization of any other service (e.g. webhooks)
-    await limits.init();
 
     // NOTE: Members service depends on these
     //       so they are initialized before it.
@@ -353,7 +353,6 @@ async function initServices() {
         identityTokens.init(),
         memberAttribution.init(),
         mentionsService.init(),
-        mentionsEmailReport.init(),
         staffService.init(),
         members.init(),
         tiers.init(),
@@ -361,13 +360,12 @@ async function initServices() {
         postsPublic.init(),
         membersEvents.init(),
         permissions.init(),
-        xmlrpc.listen(),
+        indexnow.listen(),
         slack.listen(),
         audienceFeedback.init(),
         emailService.init(),
         emailAnalytics.init(),
         webhooks.listen(),
-        apiVersionCompatibility.init(),
         scheduling.init({
             apiUrl: urlUtils.urlFor('api', {type: 'admin'}, true)
         }),
@@ -376,49 +374,18 @@ async function initServices() {
         emailSuppressionList.init(),
         slackNotifications.init(),
         mediaInliner.init(),
-        mailEvents.init(),
         donationService.init(),
         recommendationsService.init(),
-        statsService.init()
+        statsService.init(),
+        explorePingService.init()
     ]);
+
+    // Gift service depends on members, tiers, and staff services
+    await giftService.init();
+
     debug('End: Services');
 
     debug('End: initServices');
-}
-
-/**
- * Set up an dependencies that need to be injected into NestJS
- */
-async function initNestDependencies() {
-    debug('Begin: initNestDependencies');
-    const GhostNestApp = require('@tryghost/ghost');
-    const providers = [];
-    providers.push({
-        provide: 'logger',
-        useValue: require('@tryghost/logging')
-    }, {
-        provide: 'SessionService',
-        useValue: require('./server/services/auth/session').sessionService
-    }, {
-        provide: 'AdminAuthenticationService',
-        useValue: require('./server/services/auth/api-key').admin
-    }, {
-        provide: 'DomainEvents',
-        useValue: require('@tryghost/domain-events')
-    }, {
-        provide: 'SettingsCache',
-        useValue: require('./shared/settings-cache')
-    }, {
-        provide: 'knex',
-        useValue: require('./server/data/db').knex
-    }, {
-        provide: 'UrlUtils',
-        useValue: require('./shared/url-utils')
-    });
-    for (const provider of providers) {
-        GhostNestApp.addProvider(provider);
-    }
-    debug('End: initNestDependencies');
 }
 
 /**
@@ -454,6 +421,9 @@ async function initBackgroundServices({config}) {
 
     const milestonesService = require('./server/services/milestones');
     milestonesService.initAndRun();
+
+    const outboxService = require('./server/services/outbox');
+    outboxService.init();
 
     debug('End: initBackgroundServices');
 }
@@ -531,7 +501,7 @@ async function bootGhost({backend = true, frontend = true, server = true} = {}) 
         const rootApp = require('./app')();
 
         if (server) {
-            const GhostServer = require('./server/GhostServer');
+            const GhostServer = require('./server/ghost-server');
             ghostServer = new GhostServer({url: config.getSiteUrl(), env: config.get('env'), serverConfig: config.get('server')});
             await ghostServer.start(rootApp);
             bootLogger.log('server started');
@@ -577,14 +547,7 @@ async function bootGhost({backend = true, frontend = true, server = true} = {}) 
             await initAppService();
         }
 
-        await initServices({config});
-
-        // Gate the NestJS framework behind an env var to prevent it from being loaded (and slowing down boot)
-        // If we ever ship the new framework, we can remove this
-        // Using an env var because you can't use labs flags here
-        if (process.env.GHOST_ENABLE_NEST_FRAMEWORK) {
-            await initNestDependencies();
-        }
+        await initServices();
         debug('End: Load Ghost Services & Apps');
 
         // Step 5 - Mount the full Ghost app onto the minimal root app & disable maintenance mode

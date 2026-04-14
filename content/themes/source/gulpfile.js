@@ -3,6 +3,7 @@ const pump = require('pump');
 const path = require('path');
 const releaseUtils = require('@tryghost/release-utils');
 const inquirer = require('inquirer');
+const {mergeLocales} = require('@tryghost/theme-translations/build');
 
 // gulp plugins and utils
 const livereload = require('gulp-livereload');
@@ -90,8 +91,9 @@ function zipper(done) {
 const cssWatcher = () => watch('assets/css/**', css);
 const jsWatcher = () => watch('assets/js/**', js);
 const hbsWatcher = () => watch(['*.hbs', 'partials/**/*.hbs'], hbs);
-const watcher = parallel(cssWatcher, jsWatcher, hbsWatcher);
-const build = series(css, js);
+const localesWatcher = () => watch('./locales-local/**/*.json', mergeLocales());
+const watcher = parallel(cssWatcher, jsWatcher, hbsWatcher, localesWatcher);
+const build = series(css, js, mergeLocales());
 
 exports.build = build;
 exports.zip = series(build, zipper);
@@ -118,11 +120,12 @@ exports.release = async () => {
     }
 
     try {
-        const result = await inquirer.prompt([{
+        const prompt = inquirer.createPromptModule();
+        const result = await prompt([{
             type: 'input',
             name: 'compatibleWithGhost',
             message: 'Which version of Ghost is it compatible with?',
-            default: '5.0.0'
+            default: '5.67.0'
         }]);
 
         const compatibleWithGhost = result.compatibleWithGhost;

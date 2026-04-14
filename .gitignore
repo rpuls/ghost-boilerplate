@@ -1,4 +1,10 @@
-/node_modules
-/content/logs/*.log
+node_modules/
 .env
 config.production.json
+content/logs/
+content/data/*.db
+content/data/*.json
+ghost-*.log
+ghost-*.err
+root-prod.log
+root-prod.err

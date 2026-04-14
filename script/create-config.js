@@ -1,99 +1,117 @@
 #!/usr/bin/env node
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 const dotenv = require('dotenv');
 
-// Load environment variables from .env file
-dotenv.config();
+const envPath = path.join(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  dotenv.config({path: envPath});
+}
 
 const configPath = path.join(__dirname, '..', 'config.production.json');
 
-function createConfig() {
+const getEnv = (name, fallback) => {
+  const value = process.env[name];
+  return value === undefined || value === '' ? fallback : value;
+};
+
+const getMailFrom = ({mailgunSmtpLogin, mailgunDomain}) => {
+  if (process.env.MAIL_FROM) {
+    return process.env.MAIL_FROM;
+  }
+
+  if (mailgunSmtpLogin) {
+    return mailgunSmtpLogin;
+  }
+
+  if (mailgunDomain) {
+    return `noreply@${mailgunDomain}`;
+  }
+
+  return undefined;
+};
+
+function buildConfig() {
   const config = {
-    url: process.env.PUBLIC_URL,
+    url: getEnv('PUBLIC_URL', 'http://localhost:2368'),
     server: {
-      port: process.env.PORT,
-      host: '0.0.0.0'
+      host: '0.0.0.0',
+      port: Number(getEnv('PORT', '2368'))
     },
     database: {
       client: 'mysql',
       connection: {
-        host: process.env.DB_HOST,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_NAME || 'ghost'
+        host: getEnv('DB_HOST', '127.0.0.1'),
+        port: Number(getEnv('DB_PORT', '3306')),
+        user: getEnv('DB_USER', 'root'),
+        password: getEnv('DB_PASSWORD', ''),
+        database: getEnv('DB_NAME', 'ghost')
       }
     },
     logging: {
-      level: 'info',
+      level: getEnv('LOG_LEVEL', 'info'),
       transports: ['file', 'stdout']
     },
-    process: 'systemd',
     paths: {
-      contentPath: path.join(__dirname, '..', '/content/')
+      contentPath: path.join(__dirname, '..', 'content')
     }
   };
 
-  // Mail configuration
-  // Try Mailgun API first (preferred, same as newsletters)
-  if (process.env.MAILGUN_API_KEY && process.env.MAILGUN_DOMAIN) {
-    console.log('MAILGUN_API_KEY and MAILGUN_DOMAIN found, setting up Mailgun API transport');
+  const mailgunApiKey = process.env.MAILGUN_API_KEY;
+  const mailgunDomain = process.env.MAILGUN_DOMAIN;
+  const mailgunSmtpLogin = process.env.MAILGUN_SMTP_LOGIN;
+  const mailgunSmtpPassword = process.env.MAILGUN_SMTP_PASSWORD;
+  const mailFrom = getMailFrom({mailgunSmtpLogin, mailgunDomain});
+
+  if (mailgunApiKey && mailgunDomain) {
     config.mail = {
       transport: 'Mailgun',
+      from: mailFrom,
       options: {
         auth: {
-          api_key: process.env.MAILGUN_API_KEY,
-          domain: process.env.MAILGUN_DOMAIN
+          api_key: mailgunApiKey,
+          domain: mailgunDomain
         }
       }
     };
-  } 
-  // Fall back to SMTP if API credentials not available
-  else if (process.env.MAILGUN_SMTP_LOGIN && process.env.MAILGUN_SMTP_PASSWORD) {
-    console.log('MAILGUN_SMTP_LOGIN and MAILGUN_SMTP_PASSWORD found, setting up SMTP mail transport');
-    const smtpHost = process.env.MAILGUN_SMTP_HOST || 'smtp.mailgun.org';
-    const smtpPort = parseInt(process.env.MAILGUN_SMTP_PORT || '2525', 10);
-    
-    console.log(`Using SMTP host: ${smtpHost}, port: ${smtpPort}`);
-    
+  } else if (mailgunSmtpLogin && mailgunSmtpPassword) {
     config.mail = {
       transport: 'SMTP',
+      from: mailFrom,
       options: {
-        host: smtpHost,
-        port: smtpPort,
+        host: getEnv('MAILGUN_SMTP_HOST', 'smtp.mailgun.org'),
+        port: Number(getEnv('MAILGUN_SMTP_PORT', '2525')),
         secure: false,
-        auth: {
-          user: process.env.MAILGUN_SMTP_LOGIN,
-          pass: process.env.MAILGUN_SMTP_PASSWORD
-        },
         requireTLS: true,
+        auth: {
+          user: mailgunSmtpLogin,
+          pass: mailgunSmtpPassword
+        },
         tls: {
           rejectUnauthorized: true
         }
       }
     };
-  } 
-  // Fall back to Direct mode if no mail credentials
-  else {
-    console.log('No Mailgun credentials found, setting mail transport to Direct');
+  } else {
     config.mail = {
       transport: 'Direct'
     };
   }
 
-  // Cloudinary configuration
   if (process.env.CLOUDINARY_URL) {
-    console.log('CLOUDINARY_URL found, setting storage to cloudinary');
     config.storage = {
-      active: 'cloudinary',
-      cloudinary: {
+      active: 'LocalImagesStorage',
+      images: 'cloudinary-storage',
+      media: 'LocalMediaStorage',
+      files: 'LocalFilesStorage',
+      'cloudinary-storage': {
         useDatedFolder: false,
         upload: {
           use_filename: true,
           unique_filename: false,
           overwrite: false,
-          folder: process.env.CLOUDINARY_FOLDER || 'ghost-blog-images',
+          folder: getEnv('CLOUDINARY_FOLDER', 'ghost-blog-images'),
           tags: ['blog']
         },
         fetch: {
@@ -101,19 +119,19 @@ function createConfig() {
           secure: true,
           cdn_subdomain: true
         }
-      }
+      },
+      LocalMediaStorage: {},
+      LocalFilesStorage: {}
     };
-  } else {
-    console.log('CLOUDINARY_URL not found, setting storage to local');
-    // config.storage = {
-    //   active: 'LocalFileStorage'
-    // };
   }
 
-  // Write the config to the file
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  return config;
+}
 
-  console.log('Configuration file created with environment variables and default values.');
+function createConfig() {
+  const config = buildConfig();
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  console.log(`Wrote ${configPath}`);
 }
 
 createConfig();

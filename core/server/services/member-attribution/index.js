@@ -11,9 +11,11 @@ class MemberAttributionServiceWrapper {
         }
 
         // Wire up all the dependencies
-        const {
-            MemberAttributionService, UrlTranslator, ReferrerTranslator, AttributionBuilder, OutboundLinkTagger
-        } = require('@tryghost/member-attribution');
+        const MemberAttributionService = require('./member-attribution-service');
+        const UrlTranslator = require('./url-translator');
+        const ReferrerTranslator = require('./referrer-translator');
+        const AttributionBuilder = require('./attribution-builder');
+        const OutboundLinkTagger = require('./outbound-link-tagger');
         const models = require('../../models');
 
         const urlTranslator = new UrlTranslator({
