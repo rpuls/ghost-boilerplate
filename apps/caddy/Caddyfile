@@ -1,5 +1,6 @@
 :8080 {
 	handle /.ghost/activitypub/* {
+		uri strip_suffix /
 		reverse_proxy {$ACTIVITYPUB_TARGET}
 	}
 
