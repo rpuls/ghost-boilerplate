@@ -1,20 +1,14 @@
 :8080 {
 	handle /.ghost/activitypub/* {
-		reverse_proxy {$ACTIVITYPUB_TARGET} {
-			header_up Host {upstream_hostport}
-		}
+		reverse_proxy {$ACTIVITYPUB_TARGET}
 	}
 
 	handle /.well-known/webfinger {
-		reverse_proxy {$ACTIVITYPUB_TARGET} {
-			header_up Host {upstream_hostport}
-		}
+		reverse_proxy {$ACTIVITYPUB_TARGET}
 	}
 
 	handle /.well-known/nodeinfo {
-		reverse_proxy {$ACTIVITYPUB_TARGET} {
-			header_up Host {upstream_hostport}
-		}
+		reverse_proxy {$ACTIVITYPUB_TARGET}
 	}
 
 	handle {
