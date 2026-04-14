@@ -1,5 +1,10 @@
-:{$PORT} {
+:8080 {
 	handle {
-		reverse_proxy {$GHOST_UPSTREAM}
+		reverse_proxy {$GHOST_UPSTREAM} {
+			header_up Host {host}
+			header_up X-Forwarded-Host {host}
+			header_up X-Forwarded-Proto https
+			header_up X-Forwarded-For {remote_host}
+		}
 	}
 }
