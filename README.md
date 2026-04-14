@@ -63,7 +63,7 @@ CLOUDINARY_URL="" # Example: cloudinary://<api_key>:<api_secret>@<cloud_name>
 CLOUDINARY_FOLDER="ghost-blog-images"
 
 # Mail Configuration
-MAIL_FROM="" # Example: My Site <noreply@example.com>
+MAIL_FROM="" # Optional. Falls back to MAILGUN_SMTP_LOGIN or noreply@MAILGUN_DOMAIN
 MAILGUN_API_KEY=""
 MAILGUN_DOMAIN=""
 
@@ -86,7 +86,7 @@ If an older deployment is still using:
 npm run postinstall && npm run start
 ```
 
-that should still work too.
+that should still work too. New projects should use `npm start`.
 
 ### Local Development
 
@@ -134,16 +134,18 @@ This branch is designed so existing Railway projects based on the older template
 - point the app at an upgraded or migrated MySQL database
 - redeploy
 
+If your live project is already using the older start command, it should continue to boot after upgrading. For new projects, use `npm start`.
+
 ### Current Validation Status
 
-This Ghost 6 setup has already been validated locally with MySQL:
+This Ghost 6 setup has been validated on Ghost 6 with MySQL and Railway:
 
 - production boot succeeded
 - `/` returned `200 OK`
 - `/ghost/` returned `200 OK`
 - `/ghost/api/admin/site/` returned `200 OK`
-
-Cloudinary upload still needs one explicit end-to-end upload verification against a real Cloudinary account.
+- Cloudinary image upload works
+- email delivery works
 
 ### Commands
 

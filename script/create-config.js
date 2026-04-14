@@ -16,6 +16,22 @@ const getEnv = (name, fallback) => {
   return value === undefined || value === '' ? fallback : value;
 };
 
+const getMailFrom = ({mailgunSmtpLogin, mailgunDomain}) => {
+  if (process.env.MAIL_FROM) {
+    return process.env.MAIL_FROM;
+  }
+
+  if (mailgunSmtpLogin) {
+    return mailgunSmtpLogin;
+  }
+
+  if (mailgunDomain) {
+    return `noreply@${mailgunDomain}`;
+  }
+
+  return undefined;
+};
+
 function buildConfig() {
   const config = {
     url: getEnv('PUBLIC_URL', 'http://localhost:2368'),
@@ -46,11 +62,12 @@ function buildConfig() {
   const mailgunDomain = process.env.MAILGUN_DOMAIN;
   const mailgunSmtpLogin = process.env.MAILGUN_SMTP_LOGIN;
   const mailgunSmtpPassword = process.env.MAILGUN_SMTP_PASSWORD;
+  const mailFrom = getMailFrom({mailgunSmtpLogin, mailgunDomain});
 
   if (mailgunApiKey && mailgunDomain) {
     config.mail = {
       transport: 'Mailgun',
-      from: getEnv('MAIL_FROM', undefined),
+      from: mailFrom,
       options: {
         auth: {
           api_key: mailgunApiKey,
@@ -61,7 +78,7 @@ function buildConfig() {
   } else if (mailgunSmtpLogin && mailgunSmtpPassword) {
     config.mail = {
       transport: 'SMTP',
-      from: getEnv('MAIL_FROM', undefined),
+      from: mailFrom,
       options: {
         host: getEnv('MAILGUN_SMTP_HOST', 'smtp.mailgun.org'),
         port: Number(getEnv('MAILGUN_SMTP_PORT', '2525')),
@@ -80,10 +97,6 @@ function buildConfig() {
     config.mail = {
       transport: 'Direct'
     };
-  }
-
-  if (process.env.MAIL_FROM) {
-    config.mail.from = process.env.MAIL_FROM;
   }
 
   if (process.env.CLOUDINARY_URL) {
