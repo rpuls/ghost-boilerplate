@@ -51,7 +51,7 @@ function buildConfig() {
     },
     logging: {
       level: getEnv('LOG_LEVEL', 'info'),
-      transports: ['file', 'stdout']
+      transports: ['stdout']
     },
     paths: {
       contentPath: path.join(__dirname, '..', 'content')
