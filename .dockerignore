@@ -1,0 +1,12 @@
+.git
+.env
+config.production.json
+content/data/*.db
+content/data/*.json
+content/logs
+ghost-*.err
+ghost-*.log
+node_modules
+npm-debug.log
+root-prod.err
+root-prod.log
