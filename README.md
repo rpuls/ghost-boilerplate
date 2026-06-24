@@ -30,18 +30,6 @@ This boilerplate is a pre-configured Ghost blog setup optimized for deployment o
 
 Updated to `version 6.28.0`
 
-## Security update status
-
-This repo is already beyond the Ghost security fix referenced by the May 2026 critical update notice. The relevant advisory, `CVE-2026-26980` / `GHSA-w52v-v783-gw97`, affects Ghost versions up to `6.19.0` and is patched in `6.19.1`. This source tree is `6.28.0`, and the local Content API slug filter ordering code uses parameterized query bindings from the upstream fix.
-
-For future Ghost security releases, treat this repo as a customized unpacked Ghost source package rather than stock Ghost CLI output:
-
-- prefer updating from the official Ghost standalone source package for the target version
-- reapply the Railway bootstrap files in `script/`, `railway.json`, `.env.example`, and this README
-- reapply the Cloudinary adapter under `content/adapters/storage/cloudinary-storage`
-- compare `package.json`, `package-lock.json`, `core/`, `content/themes/`, and `core/built/admin/` against the target release
-- verify locally with Docker Compose before redeploying Railway
-
 ## Preconfigured Features & Integrations
 
 - **Ghost 6 Source Build**: Runs directly from source at the repo root, so Railway users can update by switching branches without changing root directory settings
@@ -137,34 +125,6 @@ For development mode:
 npm run dev
 ```
 
-### Local Docker Compose
-
-The repo includes a local Compose harness that builds this unpacked source tree, starts MySQL, initializes Ghost's schema and fixtures with `knex-migrator-init`, then boots the app.
-
-```bash
-docker compose up --build
-```
-
-Open Ghost at:
-
-```text
-http://localhost:2368
-```
-
-Useful follow-up checks:
-
-```bash
-docker compose ps
-docker compose logs ghost
-docker compose logs ghost-init
-```
-
-To reset the local database and uploaded-file volumes:
-
-```bash
-docker compose down -v
-```
-
 ### Notes for Existing Template Users
 
 This branch is designed so existing Railway projects based on the older template can update without needing to reconfigure Railway root directories. The intended upgrade flow is:
@@ -193,7 +153,6 @@ This Ghost 6 setup has been validated on Ghost 6 with MySQL and Railway:
 - `npm run postinstall` - Generate runtime config and verify bootstrap files
 - `npm start` - Regenerate config and start Ghost in production mode
 - `npm run dev` - Start Ghost in development mode
-- `docker compose up --build` - Build and run Ghost plus MySQL locally
 
 <p align="center">
   <a href="https://funkyton.com/">
