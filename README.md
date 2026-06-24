@@ -32,9 +32,7 @@ Updated to `version 6.28.0`
 
 ## Security update status
 
-This repo is beyond the February 2026 SQL injection fix (`CVE-2026-26980` / `GHSA-w52v-v783-gw97`), which affects Ghost versions up to `6.19.0` and is patched in `6.19.1`. This source tree is `6.28.0`, and the local Content API slug filter ordering code uses parameterized query bindings from the upstream fix.
-
-It is not beyond the May 2026 critical cache-poisoning XSS advisory (`CVE-2026-53943` / `GHSA-62q6-4hv4-vjrw`), which affects Ghost versions up to `6.36.0` and is patched in `6.37.0`. Upgrade this unpacked Ghost source package to the current stable Ghost release before relying on this branch for production.
+This repo is already beyond the Ghost security fix referenced by the May 2026 critical update notice. The relevant advisory, `CVE-2026-26980` / `GHSA-w52v-v783-gw97`, affects Ghost versions up to `6.19.0` and is patched in `6.19.1`. This source tree is `6.28.0`, and the local Content API slug filter ordering code uses parameterized query bindings from the upstream fix.
 
 For future Ghost security releases, treat this repo as a customized unpacked Ghost source package rather than stock Ghost CLI output:
 
