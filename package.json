@@ -48,7 +48,7 @@
     "dev": "nodemon index.js",
     "postinstall": "node ./script/postinstall.js",
     "prestart": "node ./script/create-config.js",
-    "start": "node index.js",
+    "start": "node ./script/start.js",
     "build:assets": "pnpm build:assets:css && pnpm build:assets:js",
     "build:assets:js": "node bin/minify-assets.js",
     "generate-golden-email": "node bin/generate-golden-email.js",
