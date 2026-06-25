@@ -2,8 +2,6 @@ const logging = require('@tryghost/logging');
 const ObjectID = require('bson-objectid').default;
 const errors = require('@tryghost/errors');
 const tpl = require('@tryghost/tpl');
-const EmailBodyCache = require('./email-body-cache');
-
 const messages = {
     emailErrorPartialFailure: 'An error occurred, and your newsletter was only partially sent. Please retry sending the remaining emails.',
     emailError: 'An unexpected error occurred, please retry sending your newsletter.'
@@ -34,6 +32,7 @@ class BatchSendingService {
     #db;
     #sentry;
     #debugStorageFilePath;
+    #getRequiredUrlRelations;
 
     // Retry database queries happening before sending the email
     #BEFORE_RETRY_CONFIG = {maxRetries: 10, maxTime: 10 * 60 * 1000, sleep: 2000};
@@ -53,6 +52,7 @@ class BatchSendingService {
      * @param {Email} dependencies.models.Email
      * @param {object} dependencies.models.Member
      * @param {object} dependencies.db
+     * @param {() => string[]} [dependencies.getRequiredUrlRelations] Post relations the live routes need loaded to generate URLs (lazy routing); defaults to none
      * @param {object} [dependencies.sentry]
      * @param {object} [dependencies.BEFORE_RETRY_CONFIG]
      * @param {object} [dependencies.AFTER_RETRY_CONFIG]
@@ -68,6 +68,7 @@ class BatchSendingService {
         models,
         db,
         sentry,
+        getRequiredUrlRelations = () => [],
         BEFORE_RETRY_CONFIG,
         AFTER_RETRY_CONFIG,
         MAILGUN_API_RETRY_CONFIG,
@@ -82,6 +83,7 @@ class BatchSendingService {
         this.#db = db;
         this.#sentry = sentry;
         this.#debugStorageFilePath = debugStorageFilePath;
+        this.#getRequiredUrlRelations = getRequiredUrlRelations;
 
         if (BEFORE_RETRY_CONFIG) {
             this.#BEFORE_RETRY_CONFIG = BEFORE_RETRY_CONFIG;
@@ -204,8 +206,10 @@ class BatchSendingService {
             return await email.getLazyRelation('newsletter', {require: true});
         }, {...this.#getBeforeRetryConfig(email), description: `getLazyRelation newsletter for email ${email.id}`});
 
+        // 'tiers' is required by the email tier-gating logic (renderer/segmenter), not for URL generation
+        const postRelations = [...new Set(['posts_meta', 'authors', 'tiers', ...this.#getRequiredUrlRelations()])];
         const post = await this.retryDb(async () => {
-            return await email.getLazyRelation('post', {require: true, withRelated: ['posts_meta', 'authors']});
+            return await email.getLazyRelation('post', {require: true, withRelated: postRelations});
         }, {...this.#getBeforeRetryConfig(email), description: `getLazyRelation post for email ${email.id}`});
 
         let batches = await this.retryDb(async () => {
@@ -435,7 +439,8 @@ class BatchSendingService {
             logging.info(`Delivery deadline for email ${email.id} is ${deadline}`);
         }
         // Reuse same HTML body if we send an email to the same segment
-        const emailBodyCache = new EmailBodyCache();
+        /** @type {Map<string, import('./email-renderer').EmailBody>} */
+        const emailBodyCache = new Map();
 
         // Calculate deliverytimes for the batches
         const deliveryTimes = this.calculateDeliveryTimes(email, batches.length);
@@ -481,7 +486,7 @@ class BatchSendingService {
 
     /**
      *
-     * @param {{email: Email, batch: EmailBatch, post: Post, newsletter: Newsletter, emailBodyCache: EmailBodyCache, deliveryTime:(Date|undefined) }} data
+     * @param {{email: Email, batch: EmailBatch, post: Post, newsletter: Newsletter, emailBodyCache: Map<string, import('./email-renderer').EmailBody>, deliveryTime:(Date|undefined) }} data
      * @returns {Promise<boolean>} True when succeeded, false when failed with an error
      */
     async sendBatch({email, batch: originalBatch, post, newsletter, emailBodyCache, deliveryTime}) {

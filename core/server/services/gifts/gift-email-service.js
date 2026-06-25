@@ -1,11 +1,8 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GiftEmailService = void 0;
-const moment_1 = __importDefault(require("moment"));
 const gift_email_renderer_1 = require("./gift-email-renderer");
+const DEFAULT_DATE_LOCALE = 'en-gb';
 class GiftEmailService {
     mailer;
     settingsCache;
@@ -13,13 +10,15 @@ class GiftEmailService {
     getFromAddress;
     blogIcon;
     renderer;
-    constructor({ mailer, settingsCache, urlUtils, getFromAddress, blogIcon }) {
+    t;
+    constructor({ mailer, settingsCache, urlUtils, getFromAddress, blogIcon, t }) {
         this.mailer = mailer;
         this.settingsCache = settingsCache;
         this.urlUtils = urlUtils;
         this.getFromAddress = getFromAddress;
         this.blogIcon = blogIcon;
-        this.renderer = new gift_email_renderer_1.GiftEmailRenderer();
+        this.t = t;
+        this.renderer = new gift_email_renderer_1.GiftEmailRenderer({ t });
     }
     get siteDomain() {
         try {
@@ -29,21 +28,30 @@ class GiftEmailService {
             return '';
         }
     }
-    async sendPurchaseConfirmation({ buyerEmail, amount, currency, token, tierName, cadence, duration, expiresAt }) {
-        const formattedAmount = this.formatAmount({ currency, amount: amount / 100 });
+    getCadenceLabel(cadence, duration) {
+        if (duration === 1) {
+            return cadence === 'year' ? this.t('one-year') : this.t('one-month');
+        }
+        if (cadence === 'year') {
+            return this.t('{count} year', { count: duration });
+        }
+        return this.t('{count} month', { count: duration });
+    }
+    formatDate(date) {
+        const locale = this.settingsCache.get('locale') || DEFAULT_DATE_LOCALE;
+        return new Intl.DateTimeFormat(locale, {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        }).format(date);
+    }
+    async sendPurchaseConfirmation({ buyerEmail, token, tierName, cadence, duration, expiresAt }) {
         const siteDomain = this.siteDomain;
         const siteUrl = this.urlUtils.getSiteUrl();
         const siteTitle = this.settingsCache.get('title') ?? siteDomain;
         const giftLink = `${siteUrl.replace(/\/$/, '')}/gift/${token}`;
-        const unit = cadence === 'month' ? 'month' : 'year';
-        const cadenceLabel = duration === 1 ? `1 ${unit}` : `${duration} ${unit}s`;
-        // Pre-build a mailto: URL the buyer can click to open their default mail
-        // client with a friendly draft already filled in. Recipient is left blank
-        // — that's the one thing only the buyer knows.
-        const mailtoSubject = `I got you a gift subscription to ${siteTitle}`;
-        const mailtoBody = `Hi,\n\nI bought you a subscription to ${siteTitle}. You can redeem it here:\n\n${giftLink}`;
-        const mailtoUrl = `mailto:?subject=${encodeURIComponent(mailtoSubject)}&body=${encodeURIComponent(mailtoBody)}`;
-        const templateData = {
+        const cadenceLabel = this.getCadenceLabel(cadence, duration);
+        const { html, text } = await this.renderer.renderPurchaseConfirmation({
             siteTitle,
             siteUrl,
             siteIconUrl: this.blogIcon.getIconUrl({ absolute: true, fallbackToDefault: false }),
@@ -51,35 +59,49 @@ class GiftEmailService {
             accentColor: this.settingsCache.get('accent_color'),
             toEmail: buyerEmail,
             gift: {
-                amount: formattedAmount,
                 tierName,
                 cadenceLabel,
                 link: giftLink,
-                mailtoUrl,
-                expiresAt: (0, moment_1.default)(expiresAt).format('D MMM YYYY')
+                expiresAt: this.formatDate(expiresAt)
             }
-        };
-        const { html, text } = await this.renderer.renderPurchaseConfirmation(templateData);
+        });
         await this.mailer.send({
             to: buyerEmail,
-            subject: 'Gift subscription purchase confirmation',
+            subject: this.t('Your gift is ready'),
             html,
             text,
             from: this.getFromAddress(),
             forceTextContent: true
         });
     }
-    formatAmount({ amount = 0, currency }) {
-        if (!currency) {
-            return Intl.NumberFormat('en', { maximumFractionDigits: 2 }).format(amount);
-        }
-        return Intl.NumberFormat('en', {
-            style: 'currency',
-            currency,
-            currencyDisplay: 'symbol',
-            maximumFractionDigits: 2,
-            minimumFractionDigits: 2
-        }).format(amount);
+    async sendReminder({ memberEmail, memberName, tierName, consumesAt }) {
+        const siteDomain = this.siteDomain;
+        const siteUrl = this.urlUtils.getSiteUrl();
+        const siteTitle = this.settingsCache.get('title') ?? siteDomain;
+        const manageSubscriptionUrl = new URL('#/portal/account', siteUrl).href;
+        const firstName = memberName?.trim().split(/\s+/)[0] || null;
+        const { html, text } = await this.renderer.renderReminder({
+            siteTitle,
+            siteUrl,
+            siteIconUrl: this.blogIcon.getIconUrl({ absolute: true, fallbackToDefault: false }),
+            siteDomain,
+            accentColor: this.settingsCache.get('accent_color'),
+            memberEmail,
+            firstName,
+            gift: {
+                tierName,
+                consumesAt: this.formatDate(consumesAt),
+                manageSubscriptionUrl
+            }
+        });
+        await this.mailer.send({
+            to: memberEmail,
+            subject: this.t('Your gift subscription is ending soon'),
+            html,
+            text,
+            from: this.getFromAddress(),
+            forceTextContent: true
+        });
     }
 }
 exports.GiftEmailService = GiftEmailService;

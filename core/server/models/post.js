@@ -31,7 +31,8 @@ const messages = {
     invalidMobiledocStructure: 'Invalid mobiledoc structure.',
     invalidMobiledocStructureHelp: 'https://ghost.org/docs/publishing/',
     invalidLexicalStructure: 'Invalid lexical structure.',
-    invalidLexicalStructureHelp: 'https://ghost.org/docs/publishing/'
+    invalidLexicalStructureHelp: 'https://ghost.org/docs/publishing/',
+    emailOnlyWithoutNewsletter: 'Scheduling an email requires a newsletter reference.'
 };
 
 const MOBILEDOC_REVISIONS_COUNT = 10;
@@ -392,7 +393,7 @@ Post = ghostBookshelf.Model.extend({
     },
 
     onUpdated: function onUpdated(model, options) {
-        ghostBookshelf.Model.prototype.onUpdated.apply(this, arguments);
+        const result = ghostBookshelf.Model.prototype.onUpdated.apply(this, arguments);
 
         model.statusChanging = model.get('status') !== model.previous('status');
         model.isPublished = model.get('status') === 'published';
@@ -461,16 +462,20 @@ Post = ghostBookshelf.Model.extend({
         if (model.statusChanging && (model.isPublished || model.wasPublished)) {
             this.handleStatusForAttachedModels(model, options);
         }
+
+        return result;
     },
 
-    onDestroyed: async function onDestroyed(model, options) {
-        ghostBookshelf.Model.prototype.onDestroyed.apply(this, arguments);
+    onDestroyed: function onDestroyed(model, options) {
+        const result = ghostBookshelf.Model.prototype.onDestroyed.apply(this, arguments);
 
         if (model.previous('status') === 'published') {
             model.emitChange('unpublished', Object.assign({usePreviousAttribute: true}, options));
         }
 
         model.emitChange('deleted', Object.assign({usePreviousAttribute: true}, options));
+
+        return result;
     },
 
     onDestroying: function onDestroyed(model) {
@@ -817,6 +822,14 @@ Post = ghostBookshelf.Model.extend({
         // NOTE: this is a stopgap solution for email-only posts where their status is unchanged after publish
         //       but the usual publis/send newsletter flow continues
         const hasEmailOnlyFlag = _.get(attrs, 'posts_meta.email_only') || model.related('posts_meta').get('email_only');
+
+        // Require newsletter reference for scheduled email-only posts
+        if (hasEmailOnlyFlag && newStatus === 'scheduled' && this.hasChanged('status') && !this.get('newsletter_id') && !options.newsletter) {
+            return Promise.reject(new errors.ValidationError({
+                message: tpl(messages.emailOnlyWithoutNewsletter)
+            }));
+        }
+
         if (hasEmailOnlyFlag && (newStatus === 'published') && this.hasChanged('status')) {
             this.set('status', 'sent');
         } else if (!hasEmailOnlyFlag && (newStatus === 'sent') && this.hasChanged('status')) {
@@ -923,7 +936,9 @@ Post = ghostBookshelf.Model.extend({
                         columns: ['id', 'lexical', 'created_at', 'author_id', 'title', 'reason', 'post_status', 'created_at_ts', 'feature_image']
                     }, _.pick(options, 'transacting')));
 
-                const revisions = revisionModels.toJSON();
+                // PostRevisions expects revisions in ascending order (latest last)
+                const revisions = revisionModels.toJSON()
+                    .sort((a, b) => a.created_at_ts - b.created_at_ts);
 
                 const current = {
                     id: model.id,
@@ -1190,7 +1205,7 @@ Post = ghostBookshelf.Model.extend({
 
     /**
      * Returns an array of keys permitted in a method's `options` hash, depending on the current method.
-     * @param {String} methodName The name of the method to check valid options for.
+     * @param {string} methodName The name of the method to check valid options for.
      * @return {Array} Keys allowed in the `options` hash of the model's method.
      */
     permittedOptions: function permittedOptions(methodName) {

@@ -1,6 +1,7 @@
 const tpl = require('@tryghost/tpl');
 const errors = require('@tryghost/errors');
 const models = require('../../models');
+const urlService = require('../../services/url');
 const ALLOWED_INCLUDES = ['authors', 'tags', 'tiers'];
 
 const messages = {
@@ -35,7 +36,12 @@ const controller = {
             }
         },
         async query(frame) {
-            const model = await models.Post.findOne(Object.assign(frame.data, {status: 'sent'}), frame.options);
+            const callerIncludes = Array.isArray(frame.options.withRelated) ? frame.options.withRelated : [];
+            const options = {
+                ...frame.options,
+                withRelated: [...new Set([...callerIncludes, ...urlService.facade.getRequiredRelations()])]
+            };
+            const model = await models.Post.findOne(Object.assign(frame.data, {status: 'sent'}), options);
 
             if (!model) {
                 throw new errors.NotFoundError({

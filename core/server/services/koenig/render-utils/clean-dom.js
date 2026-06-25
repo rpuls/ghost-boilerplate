@@ -1,18 +1,18 @@
-function cleanDOM(node, allowedTags) {
-    for (let i = 0; i < node.childNodes.length; i++) {
-        let child = node.childNodes[i];
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.cleanDOM = cleanDOM;
+function cleanDOM(element, allowedTags) {
+    for (let i = 0; i < element.children.length; i++) {
+        const child = element.children[i];
         if (child.nodeType === 1 && !allowedTags.includes(child.tagName)) {
             while (child.firstChild) {
-                node.insertBefore(child.firstChild, child);
+                element.insertBefore(child.firstChild, child);
             }
-            node.removeChild(child);
+            element.removeChild(child);
             i -= 1;
-        } else if (child.nodeType === 1) {
+        }
+        else if (child.nodeType === 1) {
             cleanDOM(child, allowedTags);
         }
     }
 }
-
-module.exports = {
-    cleanDOM
-};

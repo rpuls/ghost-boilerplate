@@ -4,6 +4,7 @@ const express = require('../../../shared/express');
 const sentry = require('../../../shared/sentry');
 const membersService = require('../../services/members');
 const stripeService = require('../../services/stripe');
+const audienceFeedbackService = require('../../services/audience-feedback');
 const middleware = membersService.middleware;
 const shared = require('../shared');
 const errorHandler = require('@tryghost/mw-error-handler');
@@ -101,9 +102,15 @@ module.exports = function setupMembersApp() {
             return membersService.api.middleware.verifyOTC(req, res, next);
         }
     );
-    membersApp.post('/api/create-stripe-checkout-session', function lazyCreateCheckoutSessionMw(req, res, next) {
-        return membersService.api.middleware.createCheckoutSession(req, res, next);
-    });
+    membersApp.post(
+        '/api/create-stripe-checkout-session',
+        bodyParser.json(),
+        shared.middleware.brute.checkoutSessionGlobal,
+        shared.middleware.brute.checkoutSessionEmail,
+        function lazyCreateCheckoutSessionMw(req, res, next) {
+            return membersService.api.middleware.createCheckoutSession(req, res, next);
+        }
+    );
     membersApp.post('/api/create-stripe-update-session', function lazyCreateCheckoutSetupSessionMw(req, res, next) {
         return membersService.api.middleware.createCheckoutSetupSession(req, res, next);
     });
@@ -129,11 +136,24 @@ module.exports = function setupMembersApp() {
         http(api.feedbackMembers.add)
     );
 
+    // Durable, id-based feedback link from newsletters. Resolves the post's
+    // current URL at click time so changing a slug never breaks feedback buttons.
+    membersApp.get(
+        '/feedback/:postId/:score',
+        (req, res, next) => audienceFeedbackService.controller.redirectToPost(req, res, next)
+    );
+
     // Gifts
     membersApp.get(
         '/api/gifts/:token/redeem',
         middleware.loadMemberSession,
-        http(api.giftsMembers.isRedeemable)
+        http(api.giftsMembers.getRedeemable)
+    );
+    membersApp.post(
+        '/api/gifts/:token/redeem',
+        bodyParser.json({limit: '50mb'}),
+        middleware.loadMemberSession,
+        http(api.giftsMembers.redeem)
     );
 
     // Announcement

@@ -630,8 +630,8 @@
                     "object_type": "offer"
                 },
                 {
-                    "name": "Reset all passwords",
-                    "action_type": "resetAllPasswords",
+                    "name": "Reset authentication",
+                    "action_type": "reset",
                     "object_type": "authentication"
                 },
                 {
@@ -773,6 +773,41 @@
                     "name": "Delete recommendations",
                     "action_type": "destroy",
                     "object_type": "recommendation"
+                },
+                {
+                    "name": "Browse automations",
+                    "action_type": "browse",
+                    "object_type": "automation"
+                },
+                {
+                    "name": "Read automations",
+                    "action_type": "read",
+                    "object_type": "automation"
+                },
+                {
+                    "name": "Edit automations",
+                    "action_type": "edit",
+                    "object_type": "automation"
+                },
+                {
+                    "name": "Poll automations",
+                    "action_type": "poll",
+                    "object_type": "automation"
+                },
+                {
+                    "name": "Flush gift reminders",
+                    "action_type": "flushReminders",
+                    "object_type": "gift"
+                },
+                {
+                    "name": "Manage gift links",
+                    "action_type": "manage",
+                    "object_type": "gift_link"
+                },
+                {
+                    "name": "Revoke all gift links",
+                    "action_type": "revokeAll",
+                    "object_type": "gift_link"
                 }
             ]
         },
@@ -932,7 +967,7 @@
                     "snippet": "all",
                     "custom_theme_setting": "all",
                     "offer": "all",
-                    "authentication": "resetAllPasswords",
+                    "authentication": "reset",
                     "members_stripe_connect": "auth",
                     "newsletter": "all",
                     "explore": "read",
@@ -941,6 +976,8 @@
                     "mention": "browse",
                     "collection": "all",
                     "recommendation": "all",
+                    "gift_link": "all",
+                    "automation": ["browse", "read", "edit"],
                     "identity": "read"
                 },
                 "DB Backup Integration": {
@@ -948,7 +985,9 @@
                     "member": "browse"
                 },
                 "Scheduler Integration": {
-                    "post": "publish"
+                    "post": "publish",
+                    "automation": "poll",
+                    "gift": "flushReminders"
                 },
                 "Ghost Explore Integration": {
                     "explore": "read"
@@ -988,7 +1027,9 @@
                     "mention": "browse",
                     "collection": "all",
                     "recommendation": "all",
-                    "member_signin_url": "read"
+                    "automation": ["browse", "read", "edit"],
+                    "member_signin_url": "read",
+                    "gift_link": "manage"
                 },
                 "Super Editor": {
                     "notification": "all",
@@ -1011,7 +1052,8 @@
                     "member": ["browse", "read", "add", "edit", "destroy"],
                     "member_signin_url": "read",
                     "offer": ["browse", "read"],
-                    "comment": "all"
+                    "comment": "all",
+                    "gift_link": "manage"
                 },
                 "Editor": {
                     "notification": "all",
@@ -1030,7 +1072,8 @@
                     "product": ["browse", "read"],
                     "newsletter": ["browse", "read"],
                     "collection": "all",
-                    "recommendation": ["browse", "read"]
+                    "recommendation": ["browse", "read"],
+                    "gift_link": "manage"
                 },
                 "Author": {
                     "post": ["browse", "read", "edit", "add", "destroy"],
@@ -1047,7 +1090,8 @@
                     "product": ["browse", "read"],
                     "newsletter": ["browse", "read"],
                     "collection": ["browse", "read", "add"],
-                    "recommendation": ["browse", "read"]
+                    "recommendation": ["browse", "read"],
+                    "gift_link": "manage"
                 },
                 "Contributor": {
                     "post": ["browse", "read", "edit", "add", "destroy"],

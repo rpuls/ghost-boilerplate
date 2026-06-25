@@ -1,20 +1,28 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderText = renderText;
-function renderText(data) {
-    return `Your gift is ready to share!
+function renderText(data, t) {
+    const intro = t('Thank you for your support. Share the link below with whoever you\'d like to gift them a {cadenceLabel} {tierName} membership to {siteTitle}.', {
+        cadenceLabel: data.gift.cadenceLabel,
+        tierName: data.gift.tierName,
+        siteTitle: data.siteTitle,
+        interpolation: { escapeValue: false }
+    });
+    return `${t('Your gift is ready')}
 
-Share the link below with the recipient to let them redeem their gift membership.
+${intro}
 
-Gift subscription: ${data.gift.tierName} • ${data.gift.cadenceLabel}
-Amount paid: ${data.gift.amount}
+${data.gift.link}
 
-Redemption link: ${data.gift.link}
-
-This link can be redeemed once and expires on ${data.gift.expiresAt}. It's only available to free or new members.
+${t('The link expires on {expiresAt} and can only be redeemed once.', {
+        expiresAt: data.gift.expiresAt,
+        interpolation: { escapeValue: false }
+    })}
 
 ---
-
-Sent to ${data.toEmail} from ${data.siteDomain}.
-You received this email because you purchased a gift subscription on ${data.siteTitle}.`;
+${t('This message was sent from {siteDomain} to {email}.', {
+        siteDomain: data.siteDomain,
+        email: data.toEmail,
+        interpolation: { escapeValue: false }
+    })}`;
 }

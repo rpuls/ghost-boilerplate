@@ -48,12 +48,16 @@ const buildUrl = (baseHref, key, value) => {
     result.searchParams.set(key, value);
     return result.toString();
 };
-const encodeRecipientForGmailUrl = (recipient) => (encodeURIComponent(recipient).replaceAll('%40', '@'));
 const PROVIDERS = [
     {
         name: 'gmail',
         domains: ['gmail.com', 'googlemail.com', 'google.com'],
-        getDesktopLink: ({ recipient, sender }) => (`https://mail.google.com/mail/u/${encodeRecipientForGmailUrl(recipient)}/#search/from%3A(${encodeURIComponent(sender)})+in%3Aanywhere+newer_than%3A1h`),
+        // Gmail's `/mail/u/<X>/` path expects a numeric account index. Passing a
+        // raw email only resolves when that account happens to be signed in at
+        // that slot; Workspace accounts and signed-out users hit a 404 before
+        // the `#search` fragment runs. `authuser` is Gmail's own account
+        // resolver and falls through to sign-in instead of erroring.
+        getDesktopLink: ({ recipient, sender }) => (`https://mail.google.com/mail/u/0/?authuser=${encodeURIComponent(recipient)}#search/from%3A(${encodeURIComponent(sender)})+in%3Aanywhere+newer_than%3A1h`),
         getAndroidLink: () => getAndroidIntentUrl('com.google.android.gm', 'https://mail.google.com/')
     },
     {

@@ -23,7 +23,8 @@ const messages = {
     emptyTargetPath: 'S3Storage.saveRaw requires a non-empty targetPath',
     emptyFileName: 'S3Storage.{method} requires a non-empty fileName',
     emptyRelativePath: 'S3Storage.buildKey requires a non-empty relativePath',
-    readNotSupported: 'read() is not supported by S3Storage. S3Storage is designed for media and files, not images. Use LocalImagesStorage for image storage.',
+    emptyReadPath: 'S3Storage.read requires a non-empty path',
+    readNotFound: 'Could not read file: {path}',
     multipartUploadInitFailed: 'Failed to initiate file upload.',
     multipartUploadPartFailed: 'Failed to upload file part {partNumber}.',
     multipartUploadReadFailed: 'There was an error uploading the file. The file may have been modified or removed during upload.',
@@ -290,12 +291,34 @@ class S3Storage extends ghost_storage_base_1.default {
         }
     }
     /**
-     * Not supported - S3Storage is for media/files only. Images use LocalImagesStorage.
+     * Reads an object's bytes from S3. Used by image dimension lookups, which
+     * fall back to reading from storage for images served via the CDN.
      */
-    async read() {
-        throw new errors_1.default.IncorrectUsageError({
-            message: (0, tpl_1.default)(messages.readNotSupported)
-        });
+    async read(options = {}) {
+        const relativePath = options.path;
+        if (!relativePath?.trim()) {
+            throw new errors_1.default.IncorrectUsageError({
+                message: (0, tpl_1.default)(messages.emptyReadPath)
+            });
+        }
+        const key = this.buildKey(relativePath);
+        try {
+            const response = await this.client.send(new client_s3_1.GetObjectCommand({
+                Bucket: this.bucket,
+                Key: key
+            }));
+            const bytes = await response.Body?.transformToByteArray();
+            return Buffer.from(bytes ?? []);
+        }
+        catch (error) {
+            if (this.isNotFound(error)) {
+                throw new errors_1.default.NotFoundError({
+                    err: error,
+                    message: (0, tpl_1.default)(messages.readNotFound, { path: relativePath })
+                });
+            }
+            throw error;
+        }
     }
     buildKey(relativePath) {
         if (!relativePath) {
@@ -303,7 +326,7 @@ class S3Storage extends ghost_storage_base_1.default {
                 message: (0, tpl_1.default)(messages.emptyRelativePath)
             });
         }
-        const pathWithStorage = node_path_1.default.posix.join(this.storagePath, relativePath);
+        const pathWithStorage = node_path_1.default.posix.join(this.storagePath, this.toCanonicalRelativePath(relativePath));
         if (!pathWithStorage.startsWith(this.storagePath + '/') && pathWithStorage !== this.storagePath) {
             throw new errors_1.default.IncorrectUsageError({
                 message: (0, tpl_1.default)(messages.invalidUrlParameter, { url: relativePath })
@@ -313,6 +336,38 @@ class S3Storage extends ghost_storage_base_1.default {
             return pathWithStorage;
         }
         return `${this.tenantPrefix}/${pathWithStorage}`;
+    }
+    toCanonicalRelativePath(input) {
+        return this.fromAbsoluteFilesystemPath(input)
+            ?? this.fromStoragePathPrefixed(input)
+            ?? this.fromLeadingSlashPath(input)
+            ?? input;
+    }
+    fromAbsoluteFilesystemPath(input) {
+        if (!node_path_1.default.posix.isAbsolute(input)) {
+            return null;
+        }
+        const marker = `/${this.storagePath}/`;
+        const idx = input.lastIndexOf(marker);
+        if (idx !== -1) {
+            return input.slice(idx + marker.length);
+        }
+        if (input.endsWith(`/${this.storagePath}`)) {
+            return '';
+        }
+        return null;
+    }
+    fromStoragePathPrefixed(input) {
+        if (input === this.storagePath || input.startsWith(`${this.storagePath}/`)) {
+            return node_path_1.default.posix.relative(this.storagePath, input);
+        }
+        return null;
+    }
+    fromLeadingSlashPath(input) {
+        if (!node_path_1.default.posix.isAbsolute(input)) {
+            return null;
+        }
+        return input.replace(/^\/+/, '');
     }
     isNotFound(error) {
         return error instanceof client_s3_1.NotFound || error instanceof client_s3_1.NoSuchKey;

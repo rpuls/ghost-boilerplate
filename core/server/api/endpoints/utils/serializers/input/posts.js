@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const urlService = require('../../../../../services/url');
 const debug = require('@tryghost/debug')('api:endpoints:utils:serializers:input:posts');
 const {ValidationError} = require('@tryghost/errors');
 const tpl = require('@tryghost/tpl');
@@ -74,16 +75,27 @@ function mapWithRelated(frame) {
     }
 }
 
+function forceUrlRelationsWhenLazy(frame) {
+    if (Array.isArray(frame.options.columns) && frame.options.columns.includes('url')) {
+        const relations = urlService.facade.getRequiredRelations();
+        if (relations.length) {
+            frame.options.withRelated = _.union(frame.options.withRelated || [], relations);
+        }
+    }
+}
+
 function defaultRelations(frame) {
     // Apply same mapping as content API
     mapWithRelated(frame);
+
+    forceUrlRelationsWhenLazy(frame);
 
     // Additional defaults for admin API
     if (frame.options.withRelated) {
         return;
     }
 
-    if (frame.options.columns && !frame.options.withRelated) {
+    if (frame.options.columns) {
         return false;
     }
 
@@ -166,6 +178,7 @@ module.exports = {
             setDefaultOrder(frame);
             forceVisibilityColumn(frame);
             mapWithRelated(frame);
+            forceUrlRelationsWhenLazy(frame);
         }
 
         if (!localUtils.isContentAPI(frame)) {
@@ -192,6 +205,7 @@ module.exports = {
 
             setDefaultOrder(frame);
             forceVisibilityColumn(frame);
+            forceUrlRelationsWhenLazy(frame);
         }
 
         if (!localUtils.isContentAPI(frame)) {

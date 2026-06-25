@@ -7,47 +7,20 @@ const errors = require('@tryghost/errors');
 const {MESSAGES} = require('./constants');
 const {wrapReplacementStrings} = require('../koenig/render-utils/replacement-strings');
 const linkReplacer = require('../lib/link-replacer');
-const {getEmailDesign} = require('../email-rendering/email-design');
+const emailDesign = require('../email-rendering/email-design');
 const {registerHelpers} = require('../email-service/helpers/register-helpers');
 
 const REPLACEMENT_REGEX = /%%\{(\w+?)(?:,? *"(.*?)")?\}%%/g;
 const UNMATCHED_TOKEN_REGEX = /%%\{.*?\}%%/g;
 
-// TODO: remove this constant after removing the labs flag, as we won't need these defaults anymore
-const DEFAULT_DESIGN_SETTINGS = {
-    background_color: '#ffffff',
-    body_font_category: 'sans_serif',
-    button_color: 'accent',
-    button_corners: null,
-    button_style: null,
-    divider_color: null,
-    footer_content: null,
-    header_background_color: null,
-    header_image: null,
-    image_corners: null,
-    link_color: 'accent',
-    link_style: null,
-    section_title_color: null,
-    show_badge: true,
-    show_header_title: true,
-    title_font_weight: 'bold'
-};
-
 class MemberWelcomeEmailRenderer {
     #wrapperTemplate;
+    #dir;
 
-    constructor({t}) {
+    constructor({t, dir}) {
+        this.#dir = dir;
         this.Handlebars = require('handlebars').create();
-        const useDesignCustomization = labs.isSet('welcomeEmailsDesignCustomization');
-
-        if (useDesignCustomization) {
-            registerHelpers(this.Handlebars, labs, t);
-        } else {
-            this.Handlebars.registerHelper('t', function (key, options) {
-                let hash = options?.hash;
-                return t(key, hash || options || {});
-            });
-        }
+        registerHelpers(this.Handlebars, labs, t);
         const baseStylesSource = fs.readFileSync(
             path.join(__dirname, '../email-rendering/partials/base-styles.hbs'),
             'utf8'
@@ -63,17 +36,11 @@ class MemberWelcomeEmailRenderer {
         this.Handlebars.registerPartial('baseStyles', baseStylesSource);
         this.Handlebars.registerPartial('contentStyles', contentStylesSource);
         this.Handlebars.registerPartial('cardStyles', cardStylesSource);
-        if (useDesignCustomization) {
-            const emailStylesSource = fs.readFileSync(
-                path.join(__dirname, '../email-service/email-templates/partials/styles.hbs'),
-                'utf8'
-            );
-            this.Handlebars.registerPartial('styles', emailStylesSource);
-        } else {
-            this.Handlebars.registerPartial('styles',
-                '<style>\n{{>baseStyles}}\n{{>contentStyles}}\n{{>cardStyles}}\n</style>'
-            );
-        }
+        const emailStylesSource = fs.readFileSync(
+            path.join(__dirname, '../email-service/email-templates/partials/styles.hbs'),
+            'utf8'
+        );
+        this.Handlebars.registerPartial('styles', emailStylesSource);
         const emailWrapperSource = fs.readFileSync(
             path.join(__dirname, '../email-rendering/partials/email-wrapper.hbs'),
             'utf8'
@@ -144,19 +111,16 @@ class MemberWelcomeEmailRenderer {
      * @param {Object} options
      * @param {string} options.lexical - Lexical JSON string to render
      * @param {string} options.subject - Email subject (may contain template variables)
-     * @param {Object} [options.designSettings] - Email design settings loaded from the database
+     * @param {undefined | null | Object} options.designSettings - Email design settings loaded from the database
      * @param {Object} options.member - Member data (name, email)
      * @param {Object} options.siteSettings - Site settings (title, url, accentColor)
+     * @param {string} [options.unsubscribeUrl] - When set, the footer shows an "Unsubscribe from these emails" link instead of "Manage your preferences"
      * @returns {Promise<{html: string, text: string, subject: string}>}
      */
-    async render({lexical, subject, designSettings = {}, member, siteSettings}) {
-        const useDesignCustomization = labs.isSet('welcomeEmailsDesignCustomization');
+    async render({lexical, subject, designSettings, member, siteSettings, unsubscribeUrl}) {
+        designSettings = designSettings || {};
 
-        if (!useDesignCustomization) {
-            designSettings = DEFAULT_DESIGN_SETTINGS;
-        }
-
-        const design = getEmailDesign({
+        const design = emailDesign.getEmailDesign({
             accentColor: siteSettings.accentColor,
             backgroundColor: designSettings.background_color,
             buttonColor: designSettings.button_color,
@@ -201,17 +165,17 @@ class MemberWelcomeEmailRenderer {
 
         const managePreferencesUrl = new URL('#/portal/account/newsletters', siteSettings.url).href;
         const year = new Date().getFullYear();
-        const headerImage = useDesignCustomization ? (designSettings.header_image || null) : null;
-        const showHeaderIcon = useDesignCustomization ? designSettings.show_header_icon !== false && Boolean(siteSettings.iconUrl) : false;
-        const showHeaderTitle = useDesignCustomization ? designSettings.show_header_title !== false : false;
-        const showBadge = useDesignCustomization ? designSettings.show_badge !== false : false;
+        const headerImage = designSettings.header_image || null;
+        const showHeaderIcon = designSettings.show_header_icon !== false && Boolean(siteSettings.iconUrl);
+        const showHeaderTitle = designSettings.show_header_title !== false;
+        const showBadge = designSettings.show_badge !== false;
         const bodyFontCategory = designSettings.body_font_category === 'serif' ? 'serif' : 'sans_serif';
 
         const html = this.#wrapperTemplate({
             content: contentWithAbsoluteLinks,
             emailTitle: subjectWithReplacements,
             subject: subjectWithReplacements,
-            footerContent: useDesignCustomization ? designSettings.footer_content : null,
+            footerContent: designSettings.footer_content || null,
             hasHeaderContent: Boolean(headerImage || showHeaderIcon || showHeaderTitle),
             headerImage,
             showBadge,
@@ -221,11 +185,14 @@ class MemberWelcomeEmailRenderer {
             site: {
                 iconUrl: siteSettings.iconUrl || null,
                 title: siteSettings.title,
-                url: siteSettings.url
+                url: siteSettings.url,
+                locale: siteSettings.locale || 'en',
+                direction: (this.#dir && this.#dir(siteSettings.locale || 'en')) || 'ltr'
             },
             siteTitle: siteSettings.title,
             siteUrl: siteSettings.url,
             managePreferencesUrl,
+            unsubscribeUrl: unsubscribeUrl || null,
             year,
             ctaBgColors: [
                 'grey',
@@ -240,7 +207,7 @@ class MemberWelcomeEmailRenderer {
             ...design,
             classes: {
                 container: 'container',
-                content: useDesignCustomization && bodyFontCategory !== 'serif' ? 'post-content-sans-serif' : 'post-content'
+                content: bodyFontCategory !== 'serif' ? 'post-content-sans-serif' : 'post-content'
             }
         });
 

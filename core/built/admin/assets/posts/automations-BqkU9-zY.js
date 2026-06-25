@@ -1,0 +1,285 @@
+import { R as g, z as S } from "./index-Dqn5WIFh.js";
+import { e as b, b as p, d as E } from "./hooks-5YpJYWOw.js";
+const L = ({ status: e }) => {
+  switch (e) {
+    case "active":
+      return /* @__PURE__ */ g.jsxs("span", { className: "inline-flex items-center gap-1.5 rounded-full bg-green/20 px-2 py-0.5 text-xs font-medium text-green uppercase", children: [
+        /* @__PURE__ */ g.jsx("span", { className: "size-1.5 rounded-full bg-green" }),
+        "Live"
+      ] });
+    case "inactive":
+      return /* @__PURE__ */ g.jsx("span", { className: "inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground uppercase", children: "Off" });
+    default: {
+      const n = e;
+      throw new Error(`Unhandled status: ${n}`);
+    }
+  }
+};
+var h, F;
+function O() {
+  if (F) return h;
+  F = 1;
+  for (var e = Math.floor(Math.random() * 16777215), n = r.index = parseInt(Math.random() * 16777215, 10), c = (typeof process > "u" || typeof process.pid != "number" ? Math.floor(Math.random() * 1e5) : process.pid) % 65535, s = (() => {
+    try {
+      return _Buffer;
+    } catch {
+      try {
+        return Buffer;
+      } catch {
+        return null;
+      }
+    }
+  })(), i = function(t) {
+    return !!(t != null && t.constructor && typeof t.constructor.isBuffer == "function" && t.constructor.isBuffer(t));
+  }, f = [], o = 0; o < 256; o++)
+    f[o] = (o <= 15 ? "0" : "") + o.toString(16);
+  var u = new RegExp("^[0-9a-fA-F]{24}$"), d = [];
+  for (o = 0; o < 10; ) d[48 + o] = o++;
+  for (; o < 16; ) d[55 + o] = d[87 + o] = o++;
+  function r(t) {
+    if (!(this instanceof r)) return new r(t);
+    if (t && (t instanceof r || t._bsontype === "ObjectID"))
+      return t;
+    if (this._bsontype = "ObjectID", t == null || typeof t == "number") {
+      this.id = this.generate(t);
+      return;
+    }
+    var a = r.isValid(t);
+    if (!a && t != null)
+      throw new Error(
+        "Argument passed in must be a single String of 12 bytes or a string of 24 hex characters"
+      );
+    if (a && typeof t == "string" && t.length === 24)
+      return r.createFromHexString(t);
+    if (t != null && t.length === 12)
+      this.id = t;
+    else {
+      if (t != null && typeof t.toHexString == "function")
+        return t;
+      throw new Error(
+        "Argument passed in must be a single String of 12 bytes or a string of 24 hex characters"
+      );
+    }
+  }
+  h = r, r.default = r, r.createFromTime = function(t) {
+    return t = parseInt(t, 10) % 4294967295, new r(v(8, t) + "0000000000000000");
+  }, r.createFromHexString = function(t) {
+    if (typeof t > "u" || t != null && t.length !== 24)
+      throw new Error(
+        "Argument passed in must be a single String of 12 bytes or a string of 24 hex characters"
+      );
+    for (var a = "", l = 0; l < 24; )
+      a += String.fromCharCode(d[t.charCodeAt(l++)] << 4 | d[t.charCodeAt(l++)]);
+    return new r(a);
+  }, r.isValid = function(t) {
+    return t == null ? !1 : typeof t == "number" ? !0 : typeof t == "string" ? t.length === 12 || t.length === 24 && u.test(t) : t instanceof r ? !0 : i(t) ? r.isValid(t.toString("hex")) : typeof t.toHexString == "function" && s && (t.id instanceof s || typeof t.id == "string") ? t.id.length === 12 || t.id.length === 24 && u.test(t.id) : !1;
+  }, r.prototype = {
+    constructor: r,
+    /**
+     * Return the ObjectID id as a 24 byte hex string representation
+     *
+     * @return {String} return the 24 byte hex string representation.
+     * @api public
+     */
+    toHexString: function() {
+      if (!this.id || !this.id.length)
+        throw new Error(
+          "invalid ObjectId, ObjectId.id must be either a string or a Buffer, but is [" + JSON.stringify(this.id) + "]"
+        );
+      if (this.id.length === 24)
+        return this.id;
+      if (i(this.id))
+        return this.id.toString("hex");
+      for (var t = "", a = 0; a < this.id.length; a++)
+        t += f[this.id.charCodeAt(a)];
+      return t;
+    },
+    /**
+     * Compares the equality of this ObjectID with `otherID`.
+     *
+     * @param {Object} otherId ObjectID instance to compare against.
+     * @return {Boolean} the result of comparing two ObjectID's
+     * @api public
+     */
+    equals: function(t) {
+      return t instanceof r ? this.toString() === t.toString() : typeof t == "string" && r.isValid(t) && t.length === 12 && i(this.id) ? t === this.id.toString("binary") : typeof t == "string" && r.isValid(t) && t.length === 24 ? t.toLowerCase() === this.toHexString() : typeof t == "string" && r.isValid(t) && t.length === 12 ? t === this.id : t != null && (t instanceof r || t.toHexString) ? t.toHexString() === this.toHexString() : !1;
+    },
+    /**
+     * Returns the generation date (accurate up to the second) that this ID was generated.
+     *
+     * @return {Date} the generation date
+     * @api public
+     */
+    getTimestamp: function() {
+      var t = /* @__PURE__ */ new Date(), a;
+      return i(this.id) ? a = this.id[3] | this.id[2] << 8 | this.id[1] << 16 | this.id[0] << 24 : a = this.id.charCodeAt(3) | this.id.charCodeAt(2) << 8 | this.id.charCodeAt(1) << 16 | this.id.charCodeAt(0) << 24, t.setTime(Math.floor(a) * 1e3), t;
+    },
+    /**
+    * Generate a 12 byte id buffer used in ObjectID's
+    *
+    * @method
+    * @param {number} [time] optional parameter allowing to pass in a second based timestamp.
+    * @return {string} return the 12 byte id buffer string.
+    */
+    generate: function(t) {
+      typeof t != "number" && (t = ~~(Date.now() / 1e3)), t = parseInt(t, 10) % 4294967295;
+      var a = A();
+      return String.fromCharCode(
+        t >> 24 & 255,
+        t >> 16 & 255,
+        t >> 8 & 255,
+        t & 255,
+        e >> 16 & 255,
+        e >> 8 & 255,
+        e & 255,
+        c >> 8 & 255,
+        c & 255,
+        a >> 16 & 255,
+        a >> 8 & 255,
+        a & 255
+      );
+    }
+  };
+  function A() {
+    return n = (n + 1) % 16777215;
+  }
+  function v(t, a) {
+    return a = a.toString(16), a.length === t ? a : "00000000".substring(a.length, t) + a;
+  }
+  var y = Symbol && Symbol.for && /* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom") || "inspect";
+  return r.prototype[y] = function() {
+    return "ObjectID(" + this + ")";
+  }, r.prototype.toJSON = r.prototype.toHexString, r.prototype.toString = r.prototype.toHexString, h;
+}
+var C = O();
+const T = /* @__PURE__ */ S(C), R = 20, m = "AutomationsResponseType", U = E({
+  dataType: m,
+  path: "/automations/"
+}), W = b({
+  dataType: m,
+  path: (e) => `/automations/${e}/`
+}), k = p({
+  method: "PUT",
+  path: ({ id: e }) => `/automations/${e}/`,
+  body: ({ status: e, actions: n, edges: c }) => ({
+    automations: [{
+      status: e,
+      actions: n,
+      edges: c
+    }]
+  }),
+  invalidateQueries: {
+    dataType: m
+  }
+}), V = p({
+  method: "POST",
+  path: ({ id: e }) => `/automations/${e}/email_preview`,
+  body: ({ subject: e, lexical: n }) => ({ subject: e, lexical: n })
+}), P = p({
+  method: "POST",
+  path: ({ id: e }) => `/automations/${e}/email_test`,
+  body: ({ email: e, subject: n, lexical: c }) => ({ email: e, subject: n, lexical: c })
+}), _ = () => T().toHexString(), $ = "default-automated-email", j = JSON.stringify({
+  root: {
+    children: [],
+    direction: null,
+    format: "",
+    indent: 0,
+    type: "root",
+    version: 1
+  }
+}), M = () => ({
+  id: _(),
+  type: "wait",
+  data: { wait_hours: 24 }
+}), H = () => ({
+  id: _(),
+  type: "send_email",
+  data: {
+    email_subject: "",
+    email_lexical: j,
+    email_design_setting_id: $
+  }
+}), x = (e, n) => {
+  if (!e.actions.some((c) => c.id === n))
+    throw new Error(`spliceAction: anchor references unknown action id "${n}"`);
+}, N = (e, n, c) => e.edges.some((s) => s.source_action_id === n && s.target_action_id === c), w = ({ detail: e, action: n, anchor: c }) => {
+  const { previousActionId: s, nextActionId: i } = c;
+  if (s !== void 0 && x(e, s), i !== void 0 && x(e, i), s === void 0 && i === void 0 && e.actions.length > 0)
+    throw new Error("spliceAction: anchor is required when inserting into a non-empty automation");
+  if (s !== void 0 && i !== void 0 && !N(e, s, i))
+    throw new Error(`spliceAction: anchor edge "${s}" -> "${i}" does not exist`);
+  if (s !== void 0 && i === void 0 && e.edges.some((u) => u.source_action_id === s))
+    throw new Error(`spliceAction: anchor previousActionId "${s}" is not the tail action`);
+  if (s === void 0 && i !== void 0 && e.edges.some((u) => u.target_action_id === i))
+    throw new Error(`spliceAction: anchor nextActionId "${i}" is not the head action`);
+  const f = [...e.actions, n], o = e.edges.filter((u) => !(u.source_action_id === s && u.target_action_id === i));
+  return s !== void 0 && o.push({ source_action_id: s, target_action_id: n.id }), i !== void 0 && o.push({ source_action_id: n.id, target_action_id: i }), { ...e, actions: f, edges: o };
+}, q = ({ detail: e, anchor: n }) => w({ detail: e, action: M(), anchor: n }), G = ({ detail: e, anchor: n }) => w({ detail: e, action: H(), anchor: n }), J = ({ detail: e, actionId: n, waitHours: c }) => {
+  if (!Number.isSafeInteger(c) || c <= 0)
+    throw new Error(`updateWaitAction: waitHours must be a safe positive integer, received "${c}"`);
+  let s = !1;
+  const i = e.actions.map((f) => {
+    if (f.id === n) {
+      if (f.type !== "wait")
+        throw new Error(`updateWaitAction: action "${n}" is not a wait action`);
+      return s = !0, {
+        ...f,
+        data: {
+          ...f.data,
+          wait_hours: c
+        }
+      };
+    }
+    return f;
+  });
+  if (!s)
+    throw new Error(`updateWaitAction: unknown action id "${n}"`);
+  return { ...e, actions: i, edges: [...e.edges] };
+}, Q = ({ detail: e, actionId: n, emailSubject: c, emailLexical: s }) => {
+  let i = !1;
+  const f = e.actions.map((o) => {
+    if (o.id === n) {
+      if (o.type !== "send_email")
+        throw new Error(`updateSendEmailAction: action "${n}" is not a send_email action`);
+      return i = !0, {
+        ...o,
+        data: {
+          ...o.data,
+          email_subject: c,
+          email_lexical: s
+        }
+      };
+    }
+    return o;
+  });
+  if (!i)
+    throw new Error(`updateSendEmailAction: unknown action id "${n}"`);
+  return { ...e, actions: f, edges: [...e.edges] };
+}, z = ({ detail: e, actionId: n }) => {
+  const c = e.actions.filter((u) => u.id !== n);
+  if (!(c.length < e.actions.length))
+    throw new Error(`removeAction: unknown action id "${n}"`);
+  const i = e.edges.find((u) => u.target_action_id === n), f = e.edges.find((u) => u.source_action_id === n), o = e.edges.filter(
+    (u) => u.source_action_id !== n && u.target_action_id !== n
+  );
+  return i && f && o.push({
+    source_action_id: i.source_action_id,
+    target_action_id: f.target_action_id
+  }), { ...e, actions: c, edges: o };
+};
+export {
+  L as A,
+  R as M,
+  q as a,
+  J as b,
+  U as c,
+  k as d,
+  V as e,
+  W as f,
+  P as g,
+  G as i,
+  z as r,
+  Q as u
+};
+//# sourceMappingURL=automations-BqkU9-zY.js.map

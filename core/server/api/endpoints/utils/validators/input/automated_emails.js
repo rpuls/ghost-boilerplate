@@ -1,12 +1,12 @@
 // Filename must match the docName specified in ../../../automated-emails.js
-/* eslint-disable ghost/filenames/match-regex */
+/* eslint-disable local-filenames/match-regex */
 
 const validator = require('@tryghost/validator');
 const {ValidationError} = require('@tryghost/errors');
 const tpl = require('@tryghost/tpl');
 
 const ALLOWED_STATUSES = ['inactive', 'active'];
-const ALLOWED_NAMES = ['Welcome Email (Free)', 'Welcome Email (Paid)'];
+const ALLOWED_NAMES = ['Free member welcome flow', 'Paid member welcome flow'];
 const ALLOWED_SLUGS = ['member-welcome-email-free', 'member-welcome-email-paid'];
 
 const messages = {
@@ -70,6 +70,34 @@ const validateOptionalStringField = (value, errorMessage) => {
     }
 };
 
+const validatePreviewData = (frame) => {
+    const subject = frame.data.subject;
+    const lexical = frame.data.lexical;
+
+    if (typeof subject !== 'string' || !subject.trim()) {
+        throw new ValidationError({
+            message: tpl(messages.subjectRequired),
+            property: 'subject'
+        });
+    }
+
+    if (typeof lexical !== 'string' || !lexical.trim()) {
+        throw new ValidationError({
+            message: tpl(messages.lexicalRequired),
+            property: 'lexical'
+        });
+    }
+
+    try {
+        JSON.parse(lexical);
+    } catch (e) {
+        throw new ValidationError({
+            message: tpl(messages.invalidLexical),
+            property: 'lexical'
+        });
+    }
+};
+
 module.exports = {
     async add(apiConfig, frame) {
         await validateAutomatedEmail(frame);
@@ -93,10 +121,11 @@ module.exports = {
             });
         }
     },
+    preview(apiConfig, frame) {
+        validatePreviewData(frame);
+    },
     sendTestEmail(apiConfig, frame) {
         const email = frame.data.email;
-        const subject = frame.data.subject;
-        const lexical = frame.data.lexical;
 
         if (typeof email !== 'string' || !validator.isEmail(email)) {
             throw new ValidationError({
@@ -104,24 +133,6 @@ module.exports = {
             });
         }
 
-        if (typeof subject !== 'string' || !subject.trim()) {
-            throw new ValidationError({
-                message: tpl(messages.subjectRequired)
-            });
-        }
-
-        if (typeof lexical !== 'string' || !lexical.trim()) {
-            throw new ValidationError({
-                message: tpl(messages.lexicalRequired)
-            });
-        }
-
-        try {
-            JSON.parse(lexical);
-        } catch (e) {
-            throw new ValidationError({
-                message: tpl(messages.invalidLexical)
-            });
-        }
+        validatePreviewData(frame);
     }
 };

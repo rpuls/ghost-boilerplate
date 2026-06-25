@@ -1,6 +1,12 @@
 const models = require('../../models');
+const urlService = require('../../services/url');
 const getPostServiceInstance = require('../../services/posts/posts-service-instance');
 const postsService = getPostServiceInstance();
+
+const urlRelationsWhenLazyRouting = () => {
+    const withRelated = urlService.facade.getRequiredRelations();
+    return withRelated.length ? {withRelated} : {};
+};
 
 /** @type {import('@tryghost/api-framework').Controller} */
 const controller = {
@@ -15,7 +21,8 @@ const controller = {
                 filter: 'type:post',
                 limit: '10000',
                 order: 'updated_at DESC',
-                columns: ['id', 'slug', 'title', 'excerpt', 'url', 'updated_at', 'visibility']
+                columns: ['id', 'slug', 'title', 'excerpt', 'url', 'updated_at', 'visibility'],
+                ...urlRelationsWhenLazyRouting()
             };
 
             return postsService.browsePosts(options);

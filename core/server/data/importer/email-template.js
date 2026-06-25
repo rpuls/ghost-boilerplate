@@ -1,4 +1,32 @@
-module.exports = ({result, siteUrl, postsUrl, emailRecipient}) => `
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.emailTemplate = void 0;
+const escapeHtml = (value) => value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+const getErrorMessage = (importError) => {
+    if (importError && typeof importError === 'object' && 'message' in importError && typeof importError.message === 'string' && importError.message) {
+        return importError.message;
+    }
+    return 'Unknown error';
+};
+const MAX_LISTED_ERRORS = 5;
+const renderErrorList = (importErrors) => {
+    const items = importErrors
+        .slice(0, MAX_LISTED_ERRORS)
+        .map((importError) => `<li style="margin-bottom: 6px;">${escapeHtml(getErrorMessage(importError))}</li>`);
+    const remaining = importErrors.length - MAX_LISTED_ERRORS;
+    if (remaining > 0) {
+        items.push(`<li style="margin-bottom: 6px;">and ${remaining} more &mdash; check the server logs for the full list</li>`);
+    }
+    return items.join('\n                          ');
+};
+const emailTemplate = ({ result, siteUrl, postsUrl, emailRecipient }) => {
+    const importErrors = result?.data?.errors;
+    return `
 <!doctype html>
 <html>
   <head>
@@ -122,12 +150,17 @@ module.exports = ({result, siteUrl, postsUrl, emailRecipient}) => `
                     </tr>
                     <tr>
                       <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; font-size: 16px; vertical-align: top;">
-                        <p class="title" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; font-size: 21px; color: #3A464C; font-weight: normal; line-height: 25px; margin-bottom: 30px; margin-top: 50px; font-weight: 600; color: #15212A;">${result?.data?.errors ? 'Import unsuccessful' : 'Your content import has finished successfully'}</p>
+                        <p class="title" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; font-size: 21px; color: #3A464C; font-weight: normal; line-height: 25px; margin-bottom: 30px; margin-top: 50px; font-weight: 600; color: #15212A;">${importErrors ? 'Import unsuccessful' : 'Your content import has finished successfully'}</p>
                       </td>
                     </tr>
-                    ${result?.data?.errors ? `
+                    ${importErrors ? `
                     <tr>
-                      <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; font-size: 14px; vertical-align: top; padding-bottom: 16px;">One or more error occured while importing your content. Please contact support or report on the <a href="https://forum.ghost.org/">Ghost Community Forum</a>.</td>
+                      <td style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; font-size: 14px; vertical-align: top; padding-bottom: 16px;"><p style="margin: 0 0 8px 0;">One or more errors occurred while importing your content:</p>
+                        <ul style="margin: 8px 0; padding-left: 20px;">
+                          ${renderErrorList(importErrors)}
+                        </ul>
+                        <p style="margin: 12px 0 0 0;">Please fix the listed issues and try again, or ask for help on the <a href="https://forum.ghost.org/">Ghost Community Forum</a>.</p>
+                      </td>
                     </tr>
                     ` : `
                     <tr>
@@ -160,4 +193,5 @@ module.exports = ({result, siteUrl, postsUrl, emailRecipient}) => `
   </body>
 </html>
 `;
-
+};
+exports.emailTemplate = emailTemplate;

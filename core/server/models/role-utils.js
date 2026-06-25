@@ -1,18 +1,19 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.checkUserPermissionsForRole = checkUserPermissionsForRole;
+exports.setIsRoles = setIsRoles;
 // check if the user has an assigned role
 // so that we can stop writing this everywhere:
 //_.some(loadedPermissions.user.roles, {name: 'Administrator'})
-
 function checkUserPermissionsForRole(loadedPermissions, roleName) {
     if (!loadedPermissions?.user?.roles) {
         return false;
     }
-
     return loadedPermissions.user.roles.some(role => role.name === roleName);
 }
-
 function setIsRoles(loadedPermissions) {
     // utility function to parse the permissions object and set up all the "is" variables.
-    let resultsObject = {
+    const resultsObject = {
         isOwner: false,
         isAdmin: false,
         isEditor: false,
@@ -33,6 +34,3 @@ function setIsRoles(loadedPermissions) {
     resultsObject.isEitherEditor = resultsObject.isEditor || resultsObject.isSuperEditor;
     return resultsObject;
 }
-
-exports.setIsRoles = setIsRoles;
-exports.checkUserPermissionsForRole = checkUserPermissionsForRole;

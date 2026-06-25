@@ -1,10 +1,12 @@
+const urlService = require('../../../../../services/url');
+
 module.exports = {
     all(_apiConfig, frame) {
         if (!frame.options.withRelated || frame.options.withRelated.length === 0) {
             return;
         }
 
-        // Map the 'liked' relation to 'count.liked'
+        // Map reaction shortcut relations to count relations
         frame.options.withRelated = frame.options.withRelated.map((relation) => {
             if (relation === 'liked') {
                 return 'count.liked';
@@ -12,8 +14,23 @@ module.exports = {
             if (relation === 'replies.liked') {
                 return 'replies.count.liked';
             }
+            if (relation === 'disliked') {
+                return 'count.disliked';
+            }
+            if (relation === 'replies.disliked') {
+                return 'replies.count.disliked';
+            }
             return relation;
         });
+
+        if (frame.options.withRelated.includes('post')) {
+            for (const relation of urlService.facade.getRequiredRelations()) {
+                const prefixed = `post.${relation}`;
+                if (!frame.options.withRelated.includes(prefixed)) {
+                    frame.options.withRelated.push(prefixed);
+                }
+            }
+        }
     },
 
     browse(apiConfig, frame) {
