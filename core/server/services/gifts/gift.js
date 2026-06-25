@@ -22,6 +22,7 @@ class Gift {
     consumedAt;
     expiredAt;
     refundedAt;
+    consumesSoonReminderSentAt;
     constructor(data) {
         this.token = data.token;
         this.buyerEmail = data.buyerEmail;
@@ -42,6 +43,7 @@ class Gift {
         this.consumedAt = data.consumedAt;
         this.expiredAt = data.expiredAt;
         this.refundedAt = data.refundedAt;
+        this.consumesSoonReminderSentAt = data.consumesSoonReminderSentAt;
     }
     static fromPurchase(data) {
         const now = new Date();
@@ -57,7 +59,8 @@ class Gift {
             redeemedAt: null,
             consumedAt: null,
             expiredAt: null,
-            refundedAt: null
+            refundedAt: null,
+            consumesSoonReminderSentAt: null
         });
     }
     isRedeemed() {
@@ -72,7 +75,7 @@ class Gift {
     isConsumed() {
         return this.consumedAt !== null;
     }
-    checkRedeemable() {
+    checkRedeemable(memberStatus) {
         if (this.isRedeemed()) {
             return { redeemable: false, reason: 'redeemed' };
         }
@@ -85,7 +88,92 @@ class Gift {
         if (this.isRefunded()) {
             return { redeemable: false, reason: 'refunded' };
         }
+        if (memberStatus && memberStatus !== 'free') {
+            return { redeemable: false, reason: 'paid-member' };
+        }
         return { redeemable: true };
+    }
+    redeem({ memberId, redeemedAt = new Date() }) {
+        const consumesAt = new Date(redeemedAt);
+        if (this.cadence === 'year') {
+            consumesAt.setFullYear(consumesAt.getFullYear() + this.duration);
+        }
+        else {
+            consumesAt.setMonth(consumesAt.getMonth() + this.duration);
+        }
+        return new Gift({
+            ...this,
+            redeemerMemberId: memberId,
+            redeemedAt,
+            consumesAt,
+            status: 'redeemed'
+        });
+    }
+    checkReassignable() {
+        if (this.isRefunded()) {
+            return { reassignable: false, reason: 'refunded' };
+        }
+        if (this.isConsumed()) {
+            return { reassignable: false, reason: 'consumed' };
+        }
+        if (this.isExpired()) {
+            return { reassignable: false, reason: 'expired' };
+        }
+        if (this.status !== 'redeemed' || this.redeemedAt === null) {
+            return { reassignable: false, reason: 'unredeemed' };
+        }
+        if (this.consumesAt === null) {
+            return { reassignable: false, reason: 'missing-consumes-at' };
+        }
+        if (this.redeemerMemberId !== null) {
+            return { reassignable: false, reason: 'assigned' };
+        }
+        return { reassignable: true };
+    }
+    reassignRedeemer(newMemberId) {
+        return new Gift({
+            ...this,
+            redeemerMemberId: newMemberId
+        });
+    }
+    refund() {
+        if (this.isRefunded()) {
+            return null;
+        }
+        return new Gift({
+            ...this,
+            status: 'refunded',
+            refundedAt: new Date()
+        });
+    }
+    consume() {
+        if (this.isConsumed()) {
+            return null;
+        }
+        return new Gift({
+            ...this,
+            status: 'consumed',
+            consumedAt: new Date()
+        });
+    }
+    expire() {
+        if (this.isExpired()) {
+            return null;
+        }
+        return new Gift({
+            ...this,
+            status: 'expired',
+            expiredAt: new Date()
+        });
+    }
+    remind() {
+        if (this.consumesSoonReminderSentAt !== null) {
+            return null;
+        }
+        return new Gift({
+            ...this,
+            consumesSoonReminderSentAt: new Date()
+        });
     }
 }
 exports.Gift = Gift;

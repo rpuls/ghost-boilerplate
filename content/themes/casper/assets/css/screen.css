@@ -1567,6 +1567,20 @@ except for when immediately preceeded by a heading */
     width: 100%;
 }
 
+/* Responsive video embeds - no JavaScript needed */
+.kg-embed-card iframe[src*="youtube.com"],
+.kg-embed-card iframe[src*="youtube-nocookie.com"],
+.kg-embed-card iframe[src*="player.vimeo.com"],
+.kg-embed-card iframe[src*="kickstarter.com"],
+.gh-content iframe[src*="youtube.com"],
+.gh-content iframe[src*="youtube-nocookie.com"],
+.gh-content iframe[src*="player.vimeo.com"],
+.gh-content iframe[src*="kickstarter.com"] {
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    height: auto;
+}
+
 /* This keeps small iamges centered */
 .kg-image-card img {
     margin: auto;
@@ -1734,8 +1748,40 @@ iframe.instagram-media + script + :not([id]) {
 
 .article-byline {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 16px;
     margin: min(24px, 5.6vmin) 0 0;
+}
+
+.gh-button-share {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0.5em 1.2em;
+    font-size: 1.4rem;
+    font-weight: 600;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 999px;
+    color: rgba(0, 0, 0, 0.85);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.4s ease;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.gh-button-share:hover {
+    border-color: rgba(0, 0, 0, 0.5);
+}
+
+html.dark-mode .gh-button-share {
+    color: rgba(255, 255, 255, 0.85);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+html.dark-mode .gh-button-share:hover {
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .article-byline-content {
@@ -2079,8 +2125,30 @@ iframe.instagram-media + script + :not([id]) {
     display: grid;
     grid-gap: 40px;
     grid-template-columns: auto 1fr auto;
+    align-items: center;
     color: rgba(255,255,255,0.7);
     font-size: 1.3rem;
+}
+
+.site-footer-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.site-footer-social-links {
+    display: flex;
+    gap: 20px;
+}
+
+.site-footer-social-links a {
+    display: inline-flex;
+}
+
+.site-footer-social-links svg {
+    width: 16px;
+    height: 16px;
 }
 
 .site-footer .copyright a {
@@ -2102,7 +2170,7 @@ iframe.instagram-media + script + :not([id]) {
     display: flex;
     justify-content: center;
     flex-wrap: wrap;
-    margin: 0 0 20px;
+    margin: 0;
     padding: 0;
     list-style: none;
 }
@@ -2145,6 +2213,9 @@ iframe.instagram-media + script + :not([id]) {
         font-size: 1.5rem;
     }
     .site-footer .copyright {
+        margin-bottom: 16px;
+    }
+    .site-footer-center {
         margin-bottom: 16px;
     }
 }
@@ -2277,7 +2348,7 @@ html.dark-mode .gh-content code {
 }
 
 html.dark-mode hr {
-    border-top-color: color-mod(var(--color-darkmode) l(+8%));
+    border-top-color: #424242;
 }
 
 html.dark-mode .gh-content hr:after {
@@ -2443,6 +2514,15 @@ html.dark-mode .footer-cta-title {
         color: #fff;
     }
 
+    html.auto-color .gh-button-share {
+        color: rgba(255, 255, 255, 0.85);
+        border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    html.auto-color .gh-button-share:hover {
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
     html.auto-color .no-image .author-social-link a {
         color: rgba(255, 255, 255, 0.75);
     }
@@ -2471,7 +2551,7 @@ html.dark-mode .footer-cta-title {
     }
 
     html.auto-color hr {
-        border-top-color: color-mod(var(--color-darkmode) l(+8%));
+        border-top-color: #424242;
     }
 
     html.auto-color .gh-content hr:after {

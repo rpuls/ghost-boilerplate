@@ -12,6 +12,7 @@ const tpl = require('@tryghost/tpl');
 
 const settingsCache = require('./settings-cache');
 const config = require('./config');
+const flagOverrides = require('./labs-flag-overrides');
 
 const messages = {
     errorMessage: 'The \\{\\{{helperName}\\}\\} helper is not available.',
@@ -23,8 +24,11 @@ const messages = {
 const GA_FEATURES = [
     'customFonts',
     'explore',
-    'commentModeration',
-    'featurebaseFeedback'
+    'commentsThreads',
+    'commentsPinning',
+    'featurebaseFeedback',
+    'dangerZoneResetAuth',
+    'indexnow'
 ];
 
 // These features are considered publicly available and can be enabled/disabled by users
@@ -37,21 +41,22 @@ const PUBLIC_BETA_FEATURES = [
 // These features are considered private they live in the private tab of the labs settings page
 // Which is only visible if the developer experiments flag is enabled
 const PRIVATE_FEATURES = [
+    'automations',
     'stripeAutomaticTax',
     'importMemberTier',
+    'csvContentImporter',
     'urlCache',
     'lexicalIndicators',
+    'adminUIRefresh',
     'emailCustomization',
     'tagsX',
     'emailUniqueid',
     'themeTranslation',
-    'indexnow',
-    'membersForward',
-    'dripSequences',
-    'welcomeEmailsDesignCustomization',
     'pictureImageFormats',
     'smarterCounts',
-    'giftSubscriptions'
+    'llmsTxt',
+    'getHelperDeduplication',
+    'giftLinks'
 ];
 
 module.exports.GA_KEYS = [...GA_FEATURES];
@@ -62,6 +67,14 @@ module.exports.getAll = () => {
 
     GA_FEATURES.forEach((gaKey) => {
         labs[gaKey] = true;
+    });
+
+    // Remote overrides sit above GA (so a remote entry can kill a GA flag) but below
+    // config.labs (so an explicit local pin wins): config.labs > remote > GA > DB.
+    // Empty on self-hosted, so this overlay is a no-op there.
+    const remoteOverrides = flagOverrides.getAll();
+    Object.keys(remoteOverrides).forEach((key) => {
+        labs[key] = remoteOverrides[key];
     });
 
     const labsConfig = config.get('labs') || {};

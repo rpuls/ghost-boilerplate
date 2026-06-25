@@ -8,6 +8,14 @@ const localUtils = require('./utils');
 /* eslint-disable max-lines */
 
 module.exports = {
+    get automations() {
+        return apiFramework.pipeline(require('./automations'), localUtils);
+    },
+
+    get automationEmailPreviews() {
+        return apiFramework.pipeline(require('./automation-email-previews'), localUtils);
+    },
+
     get authentication() {
         return apiFramework.pipeline(require('./authentication'), localUtils);
     },
@@ -225,6 +233,10 @@ module.exports = {
         return apiFramework.pipeline(require('./comment-likes'), localUtils);
     },
 
+    get commentDislikes() {
+        return apiFramework.pipeline(require('./comment-dislikes'), localUtils);
+    },
+
     get links() {
         return apiFramework.pipeline(require('./links'), localUtils);
     },
@@ -291,6 +303,14 @@ module.exports = {
 
     get giftsMembers() {
         return apiFramework.pipeline(require('./gifts-members'), localUtils, 'members');
+    },
+
+    get giftLinks() {
+        return apiFramework.pipeline(require('./gift-links'), localUtils);
+    },
+
+    get giftReminders() {
+        return apiFramework.pipeline(require('./gift-reminders'), localUtils);
     },
 
     get recommendationsPublic() {

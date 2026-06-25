@@ -18,28 +18,33 @@
             {{/if}}
 
             {{#if @custom.show_post_metadata}}
-            <div class="gh-article-meta">
-                <div class="gh-article-author-image instapaper_ignore">
-                    {{#foreach authors}}
-                        {{#if profile_image}}
-                            <a href="{{url}}">
-                                <img class="author-profile-image" src="{{img_url profile_image size="xs"}}" alt="{{name}}">
-                            </a>
-                        {{else}}
-                            <a href="{{url}}">{{> "icons/avatar"}}</a>
-                        {{/if}}
-                    {{/foreach}}
-                </div>
-                <div class="gh-article-meta-wrapper">
-                    <h4 class="gh-article-author-name">{{authors}}</h4>
-                    <div class="gh-article-meta-content">
-                        <time class="gh-article-meta-date" datetime="{{date format="YYYY-MM-DD"}}">{{date format="DD MMM YYYY"}}</time>
-                        {{#if reading_time}}
-                            <span class="gh-article-meta-length"><span class="bull">—</span> {{reading_time minute=(t "1 min read") minutes=(t "% min read")}}</span>
-                        {{/if}}
+                <div class="gh-meta-share">
+                    <div class="gh-article-meta">
+                        <div class="gh-article-author-image instapaper_ignore">
+                            {{#foreach authors}}
+                                {{#if profile_image}}
+                                    <a href="{{url}}">
+                                        <img class="author-profile-image" src="{{img_url profile_image size="xs"}}" alt="{{name}}">
+                                    </a>
+                                {{else}}
+                                    <a href="{{url}}">{{> "icons/avatar"}}</a>
+                                {{/if}}
+                            {{/foreach}}
+                        </div>
+                        <div class="gh-article-meta-wrapper">
+                            <h4 class="gh-article-author-name">{{authors}}</h4>
+                            <div class="gh-article-meta-content">
+                                <time class="gh-article-meta-date" datetime="{{date format="YYYY-MM-DD"}}">{{date format="DD MMM YYYY"}}</time>
+                                {{#if reading_time}}
+                                    <span class="gh-article-meta-length"><span class="bull">—</span> {{reading_time minute=(t "1 min read") minutes=(t "% min read")}}</span>
+                                {{/if}}
+                            </div>
+                        </div>
                     </div>
+                    <a href="#/share" class="gh-button gh-button-share">
+                        {{t "Share"}}
+                    </a>
                 </div>
-            </div>
             {{/if}}
 
             {{> "feature-image"}}

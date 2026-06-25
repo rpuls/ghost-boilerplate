@@ -2,24 +2,36 @@
 const settingsCache = require('../../shared/settings-cache');
 const config = require('../../shared/config');
 const settingsHelpers = require('../../server/services/settings-helpers');
+const storageUtils = require('../../server/adapters/storage/utils');
+const internalKeys = require('../../server/services/internal-keys').default;
+const logging = require('@tryghost/logging');
 
 // Require from the handlebars framework
 const {SafeString} = require('./handlebars');
 
-let _dataService = {};
-
 module.exports = {
-    getFrontendKey: () => {
-        return _dataService.getFrontendKey();
+    getFrontendKey: async () => {
+        try {
+            const key = await internalKeys.get('ghost-internal-frontend');
+            return key.secret;
+        } catch (err) {
+            logging.error({
+                event: {name: 'frontend.load-internal-key.error'},
+                err
+            }, 'Unable to find the internal frontend key');
+            return null;
+        }
     },
 
     /**
      * Section two: data manipulation
      * Stuff that modifies API data (SDK layer)
      */
-    metaData: require('../meta'),
     socialUrls: require('@tryghost/social-urls'),
     blogIcon: require('../../server/lib/image').blogIcon,
+    cachedImageSizeFromUrl: require('../../server/lib/image').cachedImageSizeFromUrl,
+    // bound because isInternalImage relies on `this` to reach sibling helpers in storage utils
+    isInternalImage: storageUtils.isInternalImage.bind(storageUtils),
     // Used by router service and {{get}} helper to prepare data for optimal usage in themes
     prepareContextResource(data) {
         (Array.isArray(data) ? data : [data]).forEach((resource) => {
@@ -61,8 +73,4 @@ module.exports = {
     // URGH... Yuk (unhelpful comment :D)
     urlService: require('../../server/services/url'),
     urlUtils: require('../../shared/url-utils')
-};
-
-module.exports.init = ({dataService}) => {
-    _dataService = dataService;
 };

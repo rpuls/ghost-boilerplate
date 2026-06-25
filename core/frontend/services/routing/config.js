@@ -1,4 +1,7 @@
-module.exports.QUERY = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.TAXONOMIES = exports.QUERY = void 0;
+exports.QUERY = {
     tag: {
         controller: 'tagsPublic',
         type: 'read',
@@ -44,8 +47,7 @@ module.exports.QUERY = {
         }
     }
 };
-
-module.exports.TAXONOMIES = {
+exports.TAXONOMIES = {
     tag: {
         filter: 'tags:\'%s\'+tags.visibility:public',
         editRedirect: '#/tags/:slug/',

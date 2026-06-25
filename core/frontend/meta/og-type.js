@@ -1,6 +1,8 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getOgType = getOgType;
 function getOgType(data) {
-    let context = data.context ? data.context[0] : null;
-
+    const context = data.context ? data.context[0] : null;
     if (context === 'author') {
         return 'profile';
     }
@@ -9,5 +11,3 @@ function getOgType(data) {
     }
     return 'website';
 }
-
-module.exports = getOgType;

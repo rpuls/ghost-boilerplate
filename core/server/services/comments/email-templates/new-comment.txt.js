@@ -1,4 +1,7 @@
-module.exports = function (data) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.renderText = renderText;
+function renderText(data) {
     // Be careful when you indent the email, because whitespaces are visible in emails!
     return `
 Hey there,
@@ -12,4 +15,4 @@ ${data.postUrl}
 Sent to ${data.toEmail} from ${data.siteDomain}.
 You can manage your notification preferences at ${data.staffUrl}.
     `;
-};
+}
