@@ -59,8 +59,10 @@ class DataGenerator {
             table.dependencies = Object.entries(this.schemaTables[table.name]).reduce((acc, [_col, data]) => {
                 if (data.references) {
                     const referencedTable = data.references.split('.')[0];
-                    // The ghost_subscriptions_id property has a foreign key to the subscriptions table, but we don't use that table yet atm, so don't add it as a dependency
-                    if (!acc.includes(referencedTable) && referencedTable !== 'subscriptions') {
+                    // Some nullable relationships point to tables the generator does not populate.
+                    // Generated redirects belong to posts, so automation revisions are not a seed dependency.
+                    const isUnsupportedOptionalDependency = referencedTable === 'subscriptions' || (referencedTable === 'automation_action_revisions' && data.nullable);
+                    if (!acc.includes(referencedTable) && !isUnsupportedOptionalDependency) {
                         acc.push(referencedTable);
                     }
                 }
@@ -210,13 +212,16 @@ class DataGenerator {
         }
 
         if (this.useTransaction) {
+            // SQLite only supports serializable transactions and warns if an
+            // isolation level is passed, so only set it for other databases.
+            const transactionConfig = DatabaseInfo.isSQLite(this.knex) ? {} : {isolationLevel: 'read committed'};
             await this.knex.transaction(async (transaction) => {
                 if (!DatabaseInfo.isSQLite(this.knex)) {
                     await transaction.raw('SET autocommit=0;');
                 }
 
                 await this.#run(transaction);
-            }, {isolationLevel: 'read committed'});
+            }, transactionConfig);
         } else {
             await this.#run(this.knex);
         }

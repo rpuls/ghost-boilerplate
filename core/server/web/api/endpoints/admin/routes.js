@@ -33,6 +33,7 @@ module.exports = function apiRoutes() {
     router.post('/posts', mw.authAdminApi, http(api.posts.add));
     router.delete('/posts', mw.authAdminApi, http(api.posts.bulkDestroy));
     router.put('/posts/bulk', mw.authAdminApi, http(api.posts.bulkEdit));
+    router.post('/posts/upload', mw.authAdminApi, labs.enabledMiddleware('csvContentImporter'), apiMw.upload.single('postsfile'), apiMw.upload.validation({type: 'posts'}), http(api.posts.importCSV));
     router.get('/posts/:id', mw.authAdminApi, http(api.posts.read));
     router.get('/posts/slug/:slug', mw.authAdminApi, http(api.posts.read));
     router.put('/posts/:id', mw.authAdminApi, http(api.posts.edit));
@@ -63,14 +64,14 @@ module.exports = function apiRoutes() {
     router.delete('/pages/:id', mw.authAdminApi, http(api.pages.destroy));
     router.post('/pages/:id/copy', mw.authAdminApi, http(api.pages.copy));
 
-    // Gift links (behind the giftLinks flag)
-    router.get('/posts/:id/gift_link', mw.authAdminApi, labs.enabledMiddleware('giftLinks'), http(api.giftLinks.read));
-    router.put('/posts/:id/gift_link', mw.authAdminApi, labs.enabledMiddleware('giftLinks'), http(api.giftLinks.issue));
-    router.post('/posts/:id/gift_link', mw.authAdminApi, labs.enabledMiddleware('giftLinks'), http(api.giftLinks.reissue));
-    router.get('/pages/:id/gift_link', mw.authAdminApi, labs.enabledMiddleware('giftLinks'), http(api.giftLinks.read));
-    router.put('/pages/:id/gift_link', mw.authAdminApi, labs.enabledMiddleware('giftLinks'), http(api.giftLinks.issue));
-    router.post('/pages/:id/gift_link', mw.authAdminApi, labs.enabledMiddleware('giftLinks'), http(api.giftLinks.reissue));
-    router.put('/gift_links/revoke_all', mw.authAdminApi, labs.enabledMiddleware('giftLinks'), http(api.giftLinks.revokeAll));
+    // Gift links
+    router.get('/posts/:id/gift_links', mw.authAdminApi, http(api.giftLinks.browse));
+    router.put('/posts/:id/gift_links', mw.authAdminApi, http(api.giftLinks.ensure));
+    router.post('/posts/:id/gift_links', mw.authAdminApi, http(api.giftLinks.create));
+    router.get('/pages/:id/gift_links', mw.authAdminApi, http(api.giftLinks.browse));
+    router.put('/pages/:id/gift_links', mw.authAdminApi, http(api.giftLinks.ensure));
+    router.post('/pages/:id/gift_links', mw.authAdminApi, http(api.giftLinks.create));
+    router.put('/gift_links/remove_all', mw.authAdminApi, http(api.giftLinks.removeAll));
 
     // # Integrations
 
@@ -155,6 +156,14 @@ module.exports = function apiRoutes() {
     );
 
     router.get('/members/stripe_connect', mw.authAdminApi, http(api.membersStripeConnect.auth));
+
+    // Member custom field definitions — gated by the members_custom_fields flag.
+    // Registered before /members/:id so the literal path isn't captured by :id.
+    router.get('/members/custom_fields', mw.authAdminApi, labs.enabledMiddleware('membersCustomFields'), http(api.membersCustomFields.browse));
+    router.post('/members/custom_fields', mw.authAdminApi, labs.enabledMiddleware('membersCustomFields'), http(api.membersCustomFields.add));
+    router.get('/members/custom_fields/:key', mw.authAdminApi, labs.enabledMiddleware('membersCustomFields'), http(api.membersCustomFields.read));
+    router.put('/members/custom_fields/:key', mw.authAdminApi, labs.enabledMiddleware('membersCustomFields'), http(api.membersCustomFields.edit));
+    router.delete('/members/custom_fields/:key', mw.authAdminApi, labs.enabledMiddleware('membersCustomFields'), http(api.membersCustomFields.destroy));
 
     router.get('/members/:id', mw.authAdminApi, http(api.members.read));
     router.put('/members/:id', mw.authAdminApi, http(api.members.edit));

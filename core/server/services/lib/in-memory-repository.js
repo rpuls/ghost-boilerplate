@@ -37,7 +37,6 @@ class InMemoryRepository {
             for (const order of options.order) {
                 results.sort((a, b) => {
                     if (order.direction === 'asc') {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         return a[order.field] > b[order.field] ? 1 : -1;
                     }
                     else {

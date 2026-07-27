@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.matchPermalink = matchPermalink;
 exports.toLookupParams = toLookupParams;
-/* eslint-disable @typescript-eslint/no-require-imports */
 const routeMatch = require('path-match')();
 const SUPPORTED_TOKENS = new Set([
     'id',

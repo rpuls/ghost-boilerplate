@@ -7,9 +7,7 @@ exports.GiftReminderScheduler = void 0;
 const logging_1 = __importDefault(require("@tryghost/logging"));
 const constants_1 = require("./constants");
 // Same-domain (scheduling) primitives, used unconditionally.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const urlUtils = require('../../../shared/url-utils');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+const urlUtils = require('../../../shared/url-utils').default;
 const { getSignedAdminToken } = require('../../adapters/scheduling/utils');
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const GIFT_REMINDER_LEAD_MS = constants_1.GIFT_REMINDER_LEAD_DAYS * MS_PER_DAY;

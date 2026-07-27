@@ -4,12 +4,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.poll = void 0;
+const mailgun_message_id_1 = require("./mailgun-message-id");
 const logging_1 = __importDefault(require("@tryghost/logging"));
 const errors_1 = __importDefault(require("@tryghost/errors"));
 const constants_1 = require("../member-welcome-emails/constants");
 const constants_2 = require("./constants");
 // @ts-expect-error Models currently lack type definitions.
 const models_1 = require("../../models");
+const settingsCache = require('../../../shared/settings-cache');
 const slugToMemberStatus = new Map(Object.entries(constants_1.MEMBER_WELCOME_EMAIL_SLUGS).map(([status, slug]) => [slug, status]));
 const hasUpdatesAndAnnouncementsEnabled = (member) => {
     const preference = member.get('enable_updates_and_announcements');
@@ -48,7 +50,7 @@ const handleStepExecutionFailure = async ({ automationsApi, err, step }) => {
     }
     return null;
 };
-const processStep = async ({ automationsApi, memberWelcomeEmailService, step }) => {
+const processStep = async ({ automationsApi, memberWelcomeEmailService, scheduleAutomationEmailAnalyticsJob, step }) => {
     if (step.automation_status !== 'active') {
         await automationsApi.markStepTerminal(step, 'automation disabled');
         return null;
@@ -98,7 +100,7 @@ const processStep = async ({ automationsApi, memberWelcomeEmailService, step }) 
         switch (step.type) {
             case 'wait':
                 break;
-            case 'send_email':
+            case 'send_email': {
                 if (!hasUpdatesAndAnnouncementsEnabled(member)) {
                     logging_1.default.info({
                         system: {
@@ -110,7 +112,9 @@ const processStep = async ({ automationsApi, memberWelcomeEmailService, step }) 
                     break;
                 }
                 memberWelcomeEmailService.init();
-                await memberWelcomeEmailService.api.sendAutomationEmail({
+                const trackClicks = Boolean(settingsCache.get('email_track_clicks'));
+                const trackOpens = Boolean(settingsCache.get('email_track_opens'));
+                const sendResult = await memberWelcomeEmailService.api.sendAutomationEmail({
                     email: {
                         designSettingId: step.email_design_setting_id,
                         lexical: step.email_lexical,
@@ -121,15 +125,22 @@ const processStep = async ({ automationsApi, memberWelcomeEmailService, step }) 
                         name: member.get('name'),
                         uuid: member.get('uuid')
                     },
-                    memberStatus
+                    memberStatus,
+                    trackOpens
                 });
+                const mailgunMessageId = (0, mailgun_message_id_1.getMailgunMessageId)(sendResult);
+                // Only Mailgun sends can produce open events for automation emails
+                const trackOpensForRecipient = trackOpens && Boolean(mailgunMessageId);
                 try {
-                    await models_1.AutomatedEmailRecipient.add({
-                        member_id: step.member_id,
-                        member_uuid: member.get('uuid'),
-                        member_email: member.get('email'),
-                        member_name: member.get('name'),
-                        automation_action_revision_id: step.automation_action_revision_id
+                    await automationsApi.recordEmailSent({
+                        automationActionRevisionId: step.automation_action_revision_id,
+                        ...(mailgunMessageId ? { mailgunMessageId } : {}),
+                        memberEmail: member.get('email'),
+                        memberId: step.member_id,
+                        memberName: member.get('name'),
+                        memberUuid: member.get('uuid'),
+                        trackClicks,
+                        trackOpens: trackOpensForRecipient
                     });
                 }
                 catch (err) {
@@ -142,7 +153,23 @@ const processStep = async ({ automationsApi, memberWelcomeEmailService, step }) 
                         }
                     }, `[AUTOMATIONS] Failed to record automated email recipient for step ${step.id}`);
                 }
+                if (mailgunMessageId) {
+                    try {
+                        await scheduleAutomationEmailAnalyticsJob();
+                    }
+                    catch (err) {
+                        logging_1.default.error({
+                            err,
+                            system: {
+                                event: 'automations.poll.analytics_scheduling_failed',
+                                member_id: step.member_id,
+                                step_id: step.id
+                            }
+                        }, `[AUTOMATIONS] Failed to schedule email analytics job for step ${step.id}`);
+                    }
+                }
                 break;
+            }
             default: {
                 const _exhaustive = step;
                 throw new errors_1.default.InternalServerError({
@@ -170,7 +197,7 @@ const dateMin = (a, b) => {
     }
     return a < b ? a : b;
 };
-const poll = async ({ automationsApi, enqueueAnotherPollAt, memberWelcomeEmailService }) => {
+const poll = async ({ automationsApi, enqueueAnotherPollAt, scheduleAutomationEmailAnalyticsJob, memberWelcomeEmailService }) => {
     const { steps, nextStepReadyAt } = await automationsApi.fetchAndLockSteps(constants_2.MAX_STEPS_PER_BATCH);
     let nextPollAt = nextStepReadyAt;
     // If the batch is full, we might have more steps to execute later.
@@ -188,6 +215,7 @@ const poll = async ({ automationsApi, enqueueAnotherPollAt, memberWelcomeEmailSe
             const stepNextPollAt = await processStep({
                 automationsApi,
                 memberWelcomeEmailService,
+                scheduleAutomationEmailAnalyticsJob,
                 step
             });
             nextPollAt = dateMin(nextPollAt, stepNextPollAt);

@@ -1,12 +1,8 @@
-/* eslint-disable max-lines */
-
-const _ = require('lodash');
 
 const api = require('../../api').endpoints;
 const config = require('../../../shared/config');
-const urlUtils = require('../../../shared/url-utils');
+const urlUtils = require('../../../shared/url-utils').default;
 const jobsService = require('../jobs');
-const databaseInfo = require('../../data/db/info');
 
 const request = require('@tryghost/request');
 const ghostVersion = require('@tryghost/version');
@@ -27,10 +23,8 @@ module.exports = async ({
     updateCheckUrl = config.get('updateCheck:url')
 } = {}) => {
     if (!forceUpdate) {
-        const allowedCheckEnvironments = ['development', 'production'];
-
-        // CASE: The check will not happen if your NODE_ENV is not in the allowed defined environments
-        if (_.indexOf(allowedCheckEnvironments, process.env.NODE_ENV) === -1) {
+        // CASE: The check will not happen if your env is not in the allowed defined environments
+        if (!config.isProductionOrDevelopment()) {
             return;
         }
     }
@@ -50,9 +44,6 @@ module.exports = async ({
                 read: api.settings.read,
                 edit: api.settings.edit
             },
-            posts: {
-                browse: api.posts.browse
-            },
             users: {
                 browse: api.users.browse
             },
@@ -61,11 +52,7 @@ module.exports = async ({
             }
         },
         config: {
-            mail: config.get('mail'),
-            env: config.get('env'),
-            databaseType: databaseInfo.getEngine(),
             checkEndpoint: updateCheckUrl,
-            isPrivacyDisabled: config.isPrivacyDisabled('useUpdateCheck'),
             notificationGroups: config.get('notificationGroups'),
             siteUrl: urlUtils.urlFor('home', true),
             forceUpdate,

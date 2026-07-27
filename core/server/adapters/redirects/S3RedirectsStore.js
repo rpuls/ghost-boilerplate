@@ -37,9 +37,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_s3_1 = require("@aws-sdk/client-s3");
+const zod_1 = require("zod");
 const tpl_1 = __importDefault(require("@tryghost/tpl"));
 const errors = __importStar(require("@tryghost/errors"));
-const RedirectsStoreBase_1 = __importDefault(require("./RedirectsStoreBase"));
+const adapter_base_redirects_1 = require("@tryghost/adapter-base-redirects");
 const redirect_config_parser_1 = require("../../services/custom-redirects/redirect-config-parser");
 const utils_1 = require("../../services/custom-redirects/utils");
 const DEFAULT_FILENAME = 'redirects.json';
@@ -50,42 +51,71 @@ const messages = {
     missingResponseBody: 'S3 GetObject returned no body'
 };
 const stripLeadingAndTrailingSlashes = (value = '') => value.replace(/^\/+|\/+$/g, '');
+// Validates and normalises the config: the slash-trimmed fields
+// (`staticFileURLPrefix`, `tenantPrefix`) are stripped via `transform` so the
+// constructor consumes ready-to-use values, plus the credential-pair rule
+// (accessKeyId and secretAccessKey must be supplied together).
+const configSchema = zod_1.z.object({
+    bucket: zod_1.z.string({ error: (0, tpl_1.default)(messages.missingBucket) }).min(1, { error: (0, tpl_1.default)(messages.missingBucket) }),
+    staticFileURLPrefix: zod_1.z.string({ error: (0, tpl_1.default)(messages.missingStaticFileURLPrefix) })
+        .transform(stripLeadingAndTrailingSlashes)
+        .refine(value => value.length > 0, { error: (0, tpl_1.default)(messages.missingStaticFileURLPrefix) }),
+    tenantPrefix: zod_1.z.string().transform(stripLeadingAndTrailingSlashes).optional(),
+    region: zod_1.z.string().optional(),
+    endpoint: zod_1.z.string().optional(),
+    forcePathStyle: zod_1.z.boolean().optional(),
+    accessKeyId: zod_1.z.string().optional(),
+    secretAccessKey: zod_1.z.string().optional(),
+    sessionToken: zod_1.z.string().optional()
+}).refine((config) => {
+    // accessKeyId and secretAccessKey must be supplied together (or not at all).
+    const hasAccessKey = Boolean(config.accessKeyId);
+    const hasSecretKey = Boolean(config.secretAccessKey);
+    const hasSessionToken = Boolean(config.sessionToken);
+    const hasCredentialPair = hasAccessKey && hasSecretKey;
+    return !((hasAccessKey || hasSecretKey || hasSessionToken) && !hasCredentialPair);
+}, { error: (0, tpl_1.default)(messages.partialCredentials) });
 /**
  * Implements RedirectsStore against an S3-compatible bucket. Reads and
  * writes a single JSON object at the configured key, keeping a
  * timestamped server-side copy of the previous contents on each
  * overwrite.
  */
-class S3RedirectsStore extends RedirectsStoreBase_1.default {
+class S3RedirectsStore extends adapter_base_redirects_1.RedirectsStoreBase {
     client;
     bucket;
     staticFileURLPrefix;
     tenantPrefix;
-    constructor(options) {
+    /**
+     * Parse + normalise the config, throwing an actionable IncorrectUsageError
+     * on the first problem. Shared by `validate` (boot-time check) and the
+     * constructor (which uses the normalised result).
+     */
+    static parseConfig(config) {
+        const result = configSchema.safeParse(config);
+        if (!result.success) {
+            throw new errors.IncorrectUsageError({
+                message: [...new Set(result.error.issues.map(issue => issue.message))].join('; ')
+            });
+        }
+        return result.data;
+    }
+    /**
+     * Validate the options S3RedirectsStore would be constructed with, without
+     * instantiating it (no S3 client is created). Called by the adapter manager
+     * at boot so misconfiguration fails early. Narrows `config` to
+     * `S3RedirectsStoreOptions`.
+     */
+    static validate(config) {
+        S3RedirectsStore.parseConfig(config);
+    }
+    constructor(config) {
         super();
-        if (!options.bucket) {
-            throw new errors.IncorrectUsageError({
-                message: (0, tpl_1.default)(messages.missingBucket)
-            });
-        }
-        const staticFileURLPrefix = stripLeadingAndTrailingSlashes(options.staticFileURLPrefix);
-        if (!staticFileURLPrefix) {
-            throw new errors.IncorrectUsageError({
-                message: (0, tpl_1.default)(messages.missingStaticFileURLPrefix)
-            });
-        }
-        const hasAccessKey = Boolean(options.accessKeyId);
-        const hasSecretKey = Boolean(options.secretAccessKey);
-        const hasSessionToken = Boolean(options.sessionToken);
-        const hasCredentialPair = hasAccessKey && hasSecretKey;
-        if ((hasAccessKey || hasSecretKey || hasSessionToken) && !hasCredentialPair) {
-            throw new errors.IncorrectUsageError({
-                message: (0, tpl_1.default)(messages.partialCredentials)
-            });
-        }
+        const options = S3RedirectsStore.parseConfig(config);
+        const hasCredentialPair = Boolean(options.accessKeyId) && Boolean(options.secretAccessKey);
         this.bucket = options.bucket;
-        this.staticFileURLPrefix = staticFileURLPrefix;
-        this.tenantPrefix = stripLeadingAndTrailingSlashes(options.tenantPrefix);
+        this.staticFileURLPrefix = options.staticFileURLPrefix;
+        this.tenantPrefix = options.tenantPrefix ?? '';
         const clientConfig = {
             region: options.region,
             endpoint: options.endpoint,

@@ -1,52 +1,49 @@
 const config = require('../../../shared/config');
 const parseYaml = require('./yaml-parser');
+const DynamicRoutingService = require('./dynamic-routing-service');
 
-let settingsLoader;
-let routeSettings;
+const service = new DynamicRoutingService();
 
 module.exports = {
     init: async () => {
-        const RouteSettings = require('./route-settings');
+        const adapterManager = require('../adapter-manager').default;
         const SettingsLoader = require('./settings-loader');
-        const DefaultSettingsManager = require('./default-settings-manager');
         const SettingsPathManager = require('./settings-path-manager');
 
         const settingsPathManager = new SettingsPathManager({type: 'routes', paths: [config.getContentPath('settings')]});
-        settingsLoader = new SettingsLoader({parseYaml, settingFilePath: settingsPathManager.getDefaultFilePath()});
-        routeSettings = new RouteSettings({
-            settingsLoader,
-            settingsPath: settingsPathManager.getDefaultFilePath(),
-            backupPath: settingsPathManager.getBackupFilePath()
-        });
-        const defaultSettingsManager = new DefaultSettingsManager({
-            type: 'routes',
-            extension: '.yaml',
-            destinationFolderPath: config.getContentPath('settings'),
-            sourceFolderPath: config.get('paths').defaultRouteSettings
-        });
+        const settingsLoader = new SettingsLoader({parseYaml, settingFilePath: settingsPathManager.getDefaultFilePath()});
 
-        return await defaultSettingsManager.ensureSettingsFileExists();
+        service.configure({
+            store: adapterManager.getAdapter('route-settings'),
+            settingsLoader
+        });
+    },
+
+    get service() {
+        return service;
     },
 
     get loadRouteSettings() {
-        return settingsLoader.loadSettings.bind(settingsLoader);
+        return service.loadRouteSettings.bind(service);
     },
+
     get getDefaultHash() {
-        return routeSettings.getDefaultHash.bind(routeSettings);
+        return service.getDefaultHash.bind(service);
     },
 
     /**
-     * Methods used in the API
+     * Methods backing the Admin API settings endpoint — delegate to the
+     * service instance so the endpoint stays decoupled from service wiring.
      */
     api: {
-        get setFromFilePath() {
-            return routeSettings.setFromFilePath.bind(routeSettings);
+        get upload() {
+            return service.upload.bind(service);
         },
-        get get() {
-            return routeSettings.get.bind(routeSettings);
+        get download() {
+            return service.download.bind(service);
         },
         get getCurrentHash() {
-            return routeSettings.getCurrentHash.bind(routeSettings);
+            return service.getCurrentHash.bind(service);
         }
     }
 };

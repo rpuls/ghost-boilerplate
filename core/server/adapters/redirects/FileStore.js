@@ -5,7 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const path_1 = __importDefault(require("path"));
-const RedirectsStoreBase_1 = __importDefault(require("./RedirectsStoreBase"));
+const adapter_base_redirects_1 = require("@tryghost/adapter-base-redirects");
 const redirect_config_parser_1 = require("../../services/custom-redirects/redirect-config-parser");
 const utils_1 = require("../../services/custom-redirects/utils");
 const YAML_FILENAME = 'redirects.yaml';
@@ -16,7 +16,7 @@ const JSON_FILENAME = 'redirects.json';
  * `.json`. The previous canonical file becomes a timestamped backup on
  * every successive `replaceAll`.
  */
-class FileStore extends RedirectsStoreBase_1.default {
+class FileStore extends adapter_base_redirects_1.RedirectsStoreBase {
     basePath;
     getBackupFilePath;
     constructor({ basePath, getBackupFilePath = utils_1.getBackupRedirectsFilePath }) {

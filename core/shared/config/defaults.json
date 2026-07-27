@@ -6,7 +6,8 @@
         "shutdownTimeout": 60000
     },
     "admin": {
-        "redirects": true
+        "redirects": true,
+        "sessionMaxAgeMs": 15552000000
     },
     "externalRequest": {
         "keepAlive": true,
@@ -29,6 +30,7 @@
         "staffDeviceVerification": true
     },
     "useMinFiles": true,
+    "verifyRequestIntegrity": true,
     "paths": {
         "contentPath": "content/",
         "fixtures": "core/server/data/schema/fixtures/fixtures",
@@ -49,6 +51,11 @@
             "active": "FileStore",
             "FileStore": {},
             "S3RedirectsStore": {}
+        },
+        "route-settings": {
+            "active": "FileStore",
+            "FileStore": {},
+            "S3RouteSettingsStore": {}
         }
     },
     "storage": {
@@ -64,6 +71,12 @@
     "members": {
         "contentApiAccess": [],
         "paymentProcessors": [],
+        "customFields": {
+            "maxDefinitions": 100
+        },
+        "importer": {
+            "inlineThreshold": 500
+        },
         "emailTemplate": {
             "showSiteHeader": true,
             "showPoweredBy": true
@@ -71,6 +84,7 @@
     },
     "logging": {
         "level": "info",
+        "logClientErrorsAsError": true,
         "useLocalTime": false,
         "rotation": {
             "enabled": false,
@@ -302,10 +316,6 @@
         "url": "https://cdn.jsdelivr.net/ghost/signup-form@~{version}/umd/signup-form.min.js",
         "version": "0.3"
     },
-    "tenor": {
-        "googleApiKey": null,
-        "contentFilter": "off"
-    },
     "klipy": {
         "apiKey": null,
         "contentFilter": "off"
@@ -355,5 +365,6 @@
         "batchSize": 1000,
         "captureLinkClickBadMemberUuid": false
     },
-    "disableJSBackups": false
+    "disableJSBackups": false,
+    "disableMigrationBackups": false
 }

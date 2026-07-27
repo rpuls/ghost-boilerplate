@@ -39,7 +39,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.init = init;
 exports.stop = stop;
 exports.getInstance = getInstance;
-/* eslint-disable @typescript-eslint/no-require-imports */
 const logging_1 = __importDefault(require("@tryghost/logging"));
 const remote_flags_service_1 = require("./remote-flags-service");
 const flagOverrides = __importStar(require("../../../shared/labs-flag-overrides"));

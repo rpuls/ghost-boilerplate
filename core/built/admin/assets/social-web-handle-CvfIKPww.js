@@ -1,0 +1,1 @@
+var e=/^[a-zA-Z0-9_]+$/;function t(e){let t=e?.match(/^@?([^@]+)@(.+)$/);return{username:t?.[1]??``,domain:t?.[2]??``}}function n(t){return t.length<2?`Username must be at least 2 characters.`:t.length>=100?`Username must be less than 100 characters.`:e.test(t)?null:`Username must contain only letters, numbers, and underscores.`}export{n,t};

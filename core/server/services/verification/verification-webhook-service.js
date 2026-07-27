@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verificationWebhookService = exports.VerificationWebhookService = void 0;
-/* eslint-disable @typescript-eslint/no-require-imports */
 const crypto_1 = __importDefault(require("crypto"));
 const logging = require('@tryghost/logging');
 const request = require('@tryghost/request');

@@ -65,7 +65,6 @@ module.exports = function MembersAPI({
         Settings,
         Comment,
         MemberFeedback,
-        Outbox,
         Automation,
         WelcomeEmailAutomationRun,
         AutomatedEmailRecipient,
@@ -82,9 +81,11 @@ module.exports = function MembersAPI({
     sentry,
     settingsHelpers,
     urlUtils,
+    urlService,
     commentsService,
     emailAddressService,
-    giftService
+    giftService,
+    customFieldValues
 }) {
     const tokenService = new TokenService({
         privateKey,
@@ -119,11 +120,11 @@ module.exports = function MembersAPI({
         OfferRedemption,
         StripeCustomer,
         StripeCustomerSubscription,
-        Outbox,
         offersAPI
     });
 
     const eventRepository = new EventRepository({
+        urlService,
         DonationPaymentEvent,
         EmailRecipient,
         MemberSubscribeEvent,
@@ -167,7 +168,8 @@ module.exports = function MembersAPI({
         settingsHelpers,
         nextPaymentCalculator,
         commentsService,
-        giftService
+        giftService,
+        customFieldValues
     });
 
     const geolocationService = new GeolocationService();

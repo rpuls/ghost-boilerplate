@@ -7,10 +7,10 @@ const serializeGiftLinks = (post, _apiConfig, frame) => {
 // module.exports (not export): the API framework loads serializers via require(). The endpoint ->
 // serializer mapping lives here; the response shaping lives with the gift-links service module.
 module.exports = {
-    read: serializeGiftLinks,
-    issue: serializeGiftLinks,
-    reissue: serializeGiftLinks,
-    revokeAll(data, _apiConfig, frame) {
+    browse: serializeGiftLinks,
+    ensure: serializeGiftLinks,
+    create: serializeGiftLinks,
+    removeAll(data, _apiConfig, frame) {
         frame.response = serializers_1.toRevokeAllResponse.parse(data);
     }
 };

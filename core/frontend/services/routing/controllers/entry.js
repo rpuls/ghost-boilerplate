@@ -1,114 +1,127 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.entryController = entryController;
+const markdown = __importStar(require("./entry/markdown"));
+const giftLinks = __importStar(require("./entry/gift-links"));
+const canonical_url_1 = __importDefault(require("./entry/canonical-url"));
 const debug = require('@tryghost/debug')('services:routing:controllers:entry');
-const url = require('url');
 const config = require('../../../../shared/config');
-const urlUtils = require('../../../../shared/url-utils');
+const urlUtils = require('../../../../shared/url-utils').default;
 const dataService = require('../../data');
 const renderer = require('../../rendering');
-const {getAcceptedMarkdownContentType, getMarkdownPath, renderEntryMarkdown} = require('../../llms/markdown');
-
-function getLlmsService(req) {
-    return req.app.get('llmsService') || null;
-}
-
-function serveMarkdown(res, entry) {
-    const llmsIndexUrl = urlUtils.urlFor({relativeUrl: '/llms.txt'}, true);
-    res.set('Cache-Control', `public, max-age=${config.get('caching:llms:maxAge')}`);
-    res.set('Content-Location', getMarkdownPath(new URL(entry.url).pathname));
-    res.type('text/markdown');
-    return res.send(renderEntryMarkdown(entry, {llmsIndexUrl}));
-}
-
 /**
- * @description Entry controller.
- * @param {Object} req
- * @param {Object} res
- * @param {Function} next
- * @returns {Promise}
+ * The request's last url param is `/edit`: redirect to the admin editor, or fall
+ * through to a 404 when admin redirects are disabled.
  */
-module.exports = function entryController(req, res, next) {
+function editRedirect(res, next, entry) {
+    if (!config.get('admin:redirects')) {
+        debug('is edit url but admin redirects are disabled');
+        return next();
+    }
+    debug('redirect. is edit url');
+    const resourceType = res.routerOptions.context?.includes('page') ? 'page' : 'post';
+    return urlUtils.redirectToAdmin(302, res, `/#/editor/${resourceType}/${entry.id}`);
+}
+/**
+ * The requested path no longer matches the entry's canonical url — happens with
+ * date permalinks after a publish date change.
+ */
+function isPermalinkStale(req, entry) {
+    return urlUtils.absoluteToRelative(entry.url, { withoutSubdirectory: true }) !== req.path;
+}
+async function entryController(req, res, next) {
     debug('entryController', res.routerOptions);
-
-    return dataService.entryLookup(req.path, res.routerOptions, res.locals)
-        .then(function then(lookup) {
-            // Format data 1
-            const entry = lookup ? lookup.entry : false;
-
-            if (!entry) {
-                debug('no entry');
-                return next();
+    try {
+        // A gift view is html-only. Redirecting before the lookup keeps the
+        // token off the read, so markdown paths can never see an unlocked entry.
+        if (giftLinks.isGiftRequest(req) && (markdown.isMdRequest(res) || markdown.isAcceptsRequest(req))) {
+            return giftLinks.stripGiftAndRedirect(req, res);
+        }
+        // The raw gift token rides the lookup as read context; the API read
+        // verifies it against the entry and unlocks, or rejects the lookup.
+        const giftToken = giftLinks.isGiftRequest(req) ? giftLinks.giftToken(req) : null;
+        let lookup;
+        try {
+            lookup = await dataService.entryLookup(req.path, res.routerOptions, res.locals, { giftToken });
+        }
+        catch (err) {
+            if (giftLinks.isInvalidGiftTokenError(err)) {
+                return giftLinks.stripGiftAndRedirect(req, res);
             }
-
-            // CASE: postlookup can detect options for example /edit, unknown options get ignored and end in 404
-            if (lookup.isUnknownOption) {
-                debug('isUnknownOption');
-                return next();
+            throw err;
+        }
+        const entry = lookup ? lookup.entry : false;
+        if (!entry || lookup.isUnknownOption) {
+            debug('no entry or unknown option');
+            return next();
+        }
+        if (lookup.isEditURL) {
+            return editRedirect(res, next, entry);
+        }
+        // MUST run before the permalink redirect below: a `.md` path can never
+        // equal the entry's canonical (html) path, so the redirect would always
+        // fire and 301 the request to html, losing the markdown intent.
+        if (markdown.isMdRequest(res)) {
+            return markdown.serveMdRequest(req, res, entry);
+        }
+        if (isPermalinkStale(req, entry)) {
+            debug('redirect');
+            return urlUtils.redirect301(res, (0, canonical_url_1.default)(req, entry));
+        }
+        // MUST run after the permalink redirect above: negotiation rides on the
+        // canonical URL, so a stale dated-permalink URL is 301'd to canonical
+        // first, then markdown is served.
+        if (markdown.isAcceptsRequest(req) && markdown.isPublic(entry)) {
+            return markdown.serveAcceptsRequest(res, entry);
+        }
+        if (giftLinks.isGiftRequest(req)) {
+            if (!giftToken) {
+                return giftLinks.stripGiftAndRedirect(req, res);
             }
-
-            // CASE: last param is of url is /edit, redirect to admin
-            if (lookup.isEditURL) {
-                if (!config.get('admin:redirects')) {
-                    debug('is edit url but admin redirects are disabled');
-                    return next();
-                }
-
-                debug('redirect. is edit url');
-                const resourceType = res.routerOptions?.context?.includes('page') ? 'page' : 'post';
-
-                return urlUtils.redirectToAdmin(302, res, `/#/editor/${resourceType}/${entry.id}`);
-            }
-
-            // CASE: .md URL — serve entry as markdown for LLM consumption
-            if (res.routerOptions.isMarkdownRequest) {
-                const llmsService = getLlmsService(req);
-                if (!llmsService || !llmsService.isEnabled()) {
-                    return res.redirect(302, url.format({
-                        pathname: url.parse(entry.url).pathname,
-                        search: url.parse(req.originalUrl).search
-                    }));
-                }
-
-                if (entry.visibility !== 'public') {
-                    return res.status(403).type('text/markdown').send(
-                        '# Members-only content\n\nThis post requires a subscription and is not available for public access.\n'
-                    );
-                }
-
-                return serveMarkdown(res, entry);
-            }
-
-            /**
-             * CASE: Permalink is not valid anymore, we redirect him permanently to the correct one
-             *       This should only happen if you have date permalinks enabled and you change
-             *       your publish date.
-             *
-             * @NOTE:
-             *
-             * Ensure we redirect to the correct post url including subdirectory.
-             */
-            if (urlUtils.absoluteToRelative(entry.url, {withoutSubdirectory: true}) !== req.path) {
-                debug('redirect');
-
-                return urlUtils.redirect301(res, url.format({
-                    pathname: url.parse(entry.url).pathname,
-                    search: url.parse(req.originalUrl).search
-                }));
-            }
-
-            // CASE: Accept: text/markdown content negotiation
-            if (entry.visibility === 'public') {
-                const markdownContentType = getAcceptedMarkdownContentType(req);
-
-                if (markdownContentType) {
-                    const llmsService = getLlmsService(req);
-
-                    if (llmsService && llmsService.isEnabled()) {
-                        res.vary('Accept');
-                        return serveMarkdown(res, entry);
-                    }
-                }
-            }
-
-            return renderer.renderEntry(req, res)(entry);
-        })
-        .catch(renderer.handleError(next));
-};
+            // Reaching here means the lookup verified the token: the entry is
+            // the unlocked variant.
+            giftLinks.prepareGiftRender(res, giftToken);
+        }
+        return renderer.renderEntry(req, res)(entry);
+    }
+    catch (err) {
+        return renderer.handleError(next)(err);
+    }
+}
+;

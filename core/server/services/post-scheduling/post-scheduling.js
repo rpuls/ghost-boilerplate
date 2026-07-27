@@ -3,18 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-/* eslint-disable @typescript-eslint/no-explicit-any */
 const moment_1 = __importDefault(require("moment"));
 const logging_1 = __importDefault(require("@tryghost/logging"));
 // CJS-only modules — typed loosely below. models is the Bookshelf registry
 // without TS declarations; the rest are JS modules without types.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const models = require('../../models');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const urlUtils = require('../../../shared/url-utils');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+const urlUtils = require('../../../shared/url-utils').default;
 const { getSignedAdminToken } = require('../../adapters/scheduling/utils');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const events = require('../../lib/common/events');
 // Pages live in the posts table with type:'page', so both types are
 // queried through models.Post and discriminated via the type filter.
