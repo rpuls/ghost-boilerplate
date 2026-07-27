@@ -5,7 +5,6 @@ const localUtils = require('./utils');
 // This is a valid index.js file - it just exports a lot of stuff!
 // Long term we would like to change the API architecture to reduce this file,
 // but that's not the problem the index.js max - line eslint "proxy" rule is there to solve.
-/* eslint-disable max-lines */
 
 module.exports = {
     get automations() {
@@ -103,6 +102,10 @@ module.exports = {
 
     get members() {
         return apiFramework.pipeline(require('./members'), localUtils);
+    },
+
+    get membersCustomFields() {
+        return apiFramework.pipeline(require('./member-custom-fields'), localUtils);
     },
 
     get memberCommenting() {

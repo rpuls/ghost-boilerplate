@@ -1,6 +1,6 @@
 'use strict';
 
-const StorageBase = require('ghost-storage-base');
+const {StorageBase} = require('ghost-storage-base');
 const path = require('path');
 const debug = require('@tryghost/debug')('adapter');
 const cloudinary = require('cloudinary').v2;

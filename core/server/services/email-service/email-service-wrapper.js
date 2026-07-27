@@ -10,7 +10,7 @@ class EmailServiceWrapper {
         return jsonModel.url;
     }
 
-    init() {
+    init({ghostServer} = {}) {
         if (this.service) {
             return;
         }
@@ -40,9 +40,8 @@ class EmailServiceWrapper {
         const labs = require('../../../shared/labs');
         const emailAddressService = require('../email-address');
         const i18nLib = require('@tryghost/i18n');
-        const mobiledocLib = require('../../lib/mobiledoc');
         const lexicalLib = require('../../lib/lexical');
-        const urlUtils = require('../../../shared/url-utils');
+        const urlUtils = require('../../../shared/url-utils').default;
         const memberAttribution = require('../member-attribution');
         const linkReplacer = require('../lib/link-replacer');
         const linkTracking = require('../link-tracking');
@@ -78,7 +77,6 @@ class EmailServiceWrapper {
             settingsCache,
             settingsHelpers,
             renderers: {
-                mobiledoc: mobiledocLib,
                 lexical: lexicalLib
             },
             imageSize: cachedImageSizeFromUrl,
@@ -131,13 +129,18 @@ class EmailServiceWrapper {
             debugStorageFilePath: configService.getContentPath('data')
         });
 
+        if (ghostServer) {
+            ghostServer.registerCleanupTask(() => batchSendingService.onShutdown());
+        }
+
         this.renderer = emailRenderer;
 
         this.service = new EmailService({
             batchSendingService,
             sendingService,
             models: {
-                Email
+                Email,
+                EmailBatch
             },
             settingsCache,
             emailRenderer,

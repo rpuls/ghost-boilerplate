@@ -1,92 +1,95 @@
-import crypto from 'crypto';
-import errors from '@tryghost/errors';
 import {z} from 'zod';
+import errors from '@tryghost/errors';
 import type {Knex} from 'knex';
-import {GiftLinkToken, type GiftLink, type Post} from './models';
-import * as queries from './queries';
+import {GiftLinkRow, giftLinkCodec, giftLinkColumns} from './codec';
+import {generateGiftLinkToken, type GiftLink, type Post} from './models';
+import {type RecordGiftLinkAction, type RequestContext} from './actions';
 
-export function generateGiftLinkToken(): GiftLinkToken {
-    return GiftLinkToken.parse(crypto.randomBytes(24).toString('base64url'));
-}
+// The LEFT JOIN leaves every link column nullable; the explicit generic names a row shape knex
+// can't infer from a dynamic column list.
+type LiveLinkRow = {[K in keyof z.input<typeof GiftLinkRow>]: z.input<typeof GiftLinkRow>[K] | null};
 
 export class GiftLinksService {
     private knex: Knex;
+    private recordAction: RecordGiftLinkAction;
 
-    constructor({knex}: {knex: Knex}) {
+    constructor({knex, recordAction}: {knex: Knex; recordAction: RecordGiftLinkAction}) {
         this.knex = knex;
+        this.recordAction = recordAction;
     }
 
     async getPost(postId: string): Promise<Post> {
-        return this.requirePost(postId);
-    }
+        // Anchored on posts: zero rows means the post itself doesn't exist, not merely that it has
+        // no live link.
+        const rows = await this.knex('posts')
+            .where('posts.id', postId)
+            .leftJoin('post_gift_links', 'post_gift_links.post_id', 'posts.id')
+            .leftJoin('gift_links', 'gift_links.token', 'post_gift_links.gift_link_token')
+            .select<LiveLinkRow[]>(giftLinkColumns);
 
-    async getPostByToken(token: string): Promise<Post | null> {
-        const row = await queries.liveLinkForToken(token)(this.knex);
-        return row ? {id: row.post_id, giftLinks: [z.decode(queries.giftLinkCodec, row)]} : null;
-    }
-
-    async issue(postId: string): Promise<Post> {
-        const post = await this.requirePost(postId);
-        return post.giftLinks.length ? post : this.mint(postId);
-    }
-
-    async reissue(postId: string): Promise<Post> {
-        const post = await this.requirePost(postId);
-        return this.mint(postId, post.giftLinks[0]?.token);
-    }
-
-    // Stamp revoked_at on the live links, then drop their associations. The link records stay
-    // as history; liveness is the association, so revoked_at only marks deliberate revocation.
-    async revokeAll(): Promise<number> {
-        const now = new Date();
-        let revoked = 0;
-        await this.knex.transaction(async (trx) => {
-            await trx('gift_links')
-                .whereIn('token', trx('post_gift_links').select('gift_link_token'))
-                .update({revoked_at: now, updated_at: now});
-            revoked = await trx('post_gift_links').del();
-        });
-        return revoked;
-    }
-
-    // Keyed by token, not liveness: a read against a since-reissued token still counts for it.
-    async recordRedemption(token: string): Promise<number> {
-        const now = new Date();
-        return this.knex('gift_links')
-            .where({token})
-            .update({last_redeemed_at: now, updated_at: now})
-            .increment('redeemed_count', 1);
-    }
-
-    // A missing post is a 404, not a post with no live links: no rows means no post, and the
-    // remaining rows carrying a token are the live links.
-    private async requirePost(postId: string): Promise<Post> {
-        const rows = await queries.liveLinksForPost(postId)(this.knex);
         if (rows.length === 0) {
             throw new errors.NotFoundError({message: `Post ${postId} does not exist.`});
         }
+
         const giftLinks = rows
-            .filter((row): row is z.input<typeof queries.GiftLinkRow> => row.token !== null)
-            .map(row => z.decode(queries.giftLinkCodec, row));
+            .filter((row): row is z.input<typeof GiftLinkRow> => row.token !== null)
+            .map(row => z.decode(giftLinkCodec, row));
         return {id: postId, giftLinks};
     }
 
-    // Issue and reissue are one upsert: a new store row, with the live association repointed to
-    // it. On reissue the replaced link is stamped revoked_at as history. Concurrent issues are
-    // last-writer-wins, not an error.
-    private async mint(postId: string, replacing?: GiftLinkToken): Promise<Post> {
-        const now = new Date();
-        const link: GiftLink = {token: generateGiftLinkToken(), redeemedCount: 0, lastRedeemedAt: null, createdAt: now};
+    async getPostByToken(token: string): Promise<Post | null> {
+        const row = await this.knex('post_gift_links')
+            .join('gift_links', 'gift_links.token', 'post_gift_links.gift_link_token')
+            .where('gift_links.token', token)
+            .first<z.input<typeof GiftLinkRow> & {post_id: string}>(
+                [...giftLinkColumns, 'post_gift_links.post_id as post_id']
+            );
+        return row ? {id: row.post_id, giftLinks: [z.decode(giftLinkCodec, row)]} : null;
+    }
+
+    async ensure(context: RequestContext, postId: string): Promise<Post> {
+        const post = await this.getPost(postId);
+        if (post.giftLinks.length) {
+            return post;
+        }
+        const minted = await this.mint(postId);
+        await this.recordAction({context, verb: 'add', subject: postId});
+        return minted;
+    }
+
+    async create(context: RequestContext, postId: string): Promise<Post> {
+        await this.getPost(postId); // asserts the post exists (throws NotFound)
+        const minted = await this.mint(postId);
+        await this.recordAction({context, verb: 'reset', subject: postId});
+        return minted;
+    }
+
+    // gift_links rows are kept as history; only the live association is removed.
+    async removeAll(context: RequestContext): Promise<number> {
+        const removed = await this.knex('post_gift_links').del();
+        if (removed > 0) {
+            await this.recordAction({context, verb: 'remove', subject: null});
+        }
+        return removed;
+    }
+
+    private async mint(postId: string): Promise<Post> {
+        const link: GiftLink = {token: generateGiftLinkToken(), createdAt: new Date()};
         await this.knex.transaction(async (trx) => {
-            if (replacing) {
-                await trx('gift_links').where({token: replacing}).update({revoked_at: now, updated_at: now});
-            }
-            await trx('gift_links').insert({...z.encode(queries.giftLinkCodec, link), post_id: postId});
-            await trx('post_gift_links')
-                .insert({post_id: postId, gift_link_token: link.token, created_at: now})
-                .onConflict('post_id')
-                .merge({gift_link_token: link.token, updated_at: now});
+            await this.addToHistory(trx, postId, link);
+            await this.setLiveLink(trx, postId, link);
         });
         return {id: postId, giftLinks: [link]};
+    }
+
+    private addToHistory(trx: Knex.Transaction, postId: string, link: GiftLink) {
+        return trx('gift_links').insert({...z.encode(giftLinkCodec, link), post_id: postId});
+    }
+
+    private setLiveLink(trx: Knex.Transaction, postId: string, link: GiftLink) {
+        return trx('post_gift_links')
+            .insert({post_id: postId, gift_link_token: link.token, created_at: link.createdAt})
+            .onConflict('post_id')
+            .merge({gift_link_token: link.token, updated_at: link.createdAt});
     }
 }

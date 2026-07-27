@@ -6,6 +6,11 @@
  * @typedef {object} LimitService
  * @typedef {{checkVerificationRequired(): Promise<boolean>}} VerificationTrigger
  * @typedef {import ('./domain-warming-service').DomainWarmingService} DomainWarmingService
+ *
+ * @typedef {object} EmailPreflight - Validation result from a pre-save checkCanSendEmail call
+ * @property {object} newsletter
+ * @property {string} emailRecipientFilter
+ * @property {number} emailCount
  */
 
 const BatchSendingService = require('./batch-sending-service');
@@ -20,8 +25,15 @@ const messages = {
     archivedNewsletterError: 'Cannot send email to archived newsletters',
     missingNewsletterError: 'The post does not have a newsletter relation',
     emailSendingDisabled: `Email sending is temporarily disabled because your account is currently in review. You should have an email about this from us already, but you can also reach us any time at support@ghost.org`,
-    retryEmailStatusError: 'Can only retry emails for published posts'
+    retryEmailStatusError: 'Can only retry emails for published posts',
+    retryEmailNotFailed: 'Only failed emails can be retried'
 };
+
+// Resume scanner won't pick up `submitting` rows older than this. Rows beyond the cutoff
+// are flipped to `failed` on first boot so they surface in admin UI for operator review
+// rather than being silently resumed (and sending stale newsletters to current members).
+// Override via `bulkEmail:resumeMaxAgeMs` in config.
+const DEFAULT_RESUME_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 class EmailService {
     #batchSendingService;
@@ -44,6 +56,7 @@ class EmailService {
      * @param {SendingService} dependencies.sendingService
      * @param {object} dependencies.models
      * @param {object} dependencies.models.Email
+     * @param {object} [dependencies.models.EmailBatch] - Required for resumeInterruptedSends breadcrumbs
      * @param {object} dependencies.settingsCache
      * @param {EmailRenderer} dependencies.emailRenderer
      * @param {EmailSegmenter} dependencies.emailSegmenter
@@ -114,9 +127,11 @@ class EmailService {
      *
      * @param {object} newsletter - The newsletter model to send to
      * @param {string} emailRecipientFilter - The recipient filter for the email
+     * @param {object} [options]
+     * @param {number} [options.emailCount] - A previously counted audience to revalidate without recounting
      * @returns {Promise<{emailCount: number}>} The email count if checks pass, throws if email cannot be sent
      */
-    async checkCanSendEmail(newsletter, emailRecipientFilter) {
+    async checkCanSendEmail(newsletter, emailRecipientFilter, {emailCount: knownEmailCount} = {}) {
         if (!newsletter) {
             throw new errors.EmailError({
                 message: tpl(messages.missingNewsletterError)
@@ -131,7 +146,9 @@ class EmailService {
             });
         }
 
-        const emailCount = await this.#emailSegmenter.getMembersCount(newsletter, emailRecipientFilter);
+        const emailCount = knownEmailCount === undefined
+            ? await this.#emailSegmenter.getMembersCount(newsletter, emailRecipientFilter)
+            : knownEmailCount;
         await this.checkLimits(emailCount);
 
         return {emailCount};
@@ -140,13 +157,20 @@ class EmailService {
     /**
      *
      * @param {Post} post
+     * @param {object} [options]
+     * @param {EmailPreflight} [options.preflight] - The emailCount is reused if the newsletter and filter still match the saved post
      * @returns {Promise<Email>}
      */
-    async createEmail(post) {
+    async createEmail(post, {preflight} = {}) {
         const newsletter = await post.getLazyRelation('newsletter');
         const emailRecipientFilter = post.get('email_recipient_filter');
 
-        const {emailCount} = await this.checkCanSendEmail(newsletter, emailRecipientFilter);
+        const preflightMatches = preflight?.newsletter?.id
+            && preflight.newsletter.id === newsletter?.id
+            && preflight.emailRecipientFilter === emailRecipientFilter;
+        const {emailCount} = preflightMatches
+            ? await this.checkCanSendEmail(newsletter, emailRecipientFilter, {emailCount: preflight.emailCount})
+            : await this.checkCanSendEmail(newsletter, emailRecipientFilter);
 
         const csdEmailCount = this.#domainWarmingService.isEnabled()
             ? await this.#domainWarmingService.getWarmupLimit(emailCount)
@@ -181,12 +205,142 @@ class EmailService {
 
         // make sure recurring background analytics jobs are running once we have emails
         try {
-            await this.#emailAnalyticsJobs.scheduleRecurringJobs(true);
+            await this.#emailAnalyticsJobs.scheduleRecurringNewslettersJob(true);
         } catch (e) {
             logging.error(e);
         }
 
         return email;
+    }
+
+    /**
+     * Boot-time scanner: resumes newsletter emails left in `submitting` after a
+     * previous container's interrupted send. Iterates sequentially; one failure
+     * does not skip others. Rows older than the configured max-age are flipped
+     * to `failed` (not resumed) so stale content does not get sent to current members.
+     */
+    async resumeInterruptedSends() {
+        const maxAgeMs = this.#config?.get?.('bulkEmail:resumeMaxAgeMs') ?? DEFAULT_RESUME_MAX_AGE_MS;
+        const cutoffIso = new Date(Date.now() - maxAgeMs).toISOString();
+
+        // Stale rows: too old to safely resume. Flip to `failed` so they surface in admin UI
+        // for operator review instead of being silently left in `submitting` forever.
+        const stale = await this.#models.Email.findAll({
+            filter: `status:submitting+created_at:<'${cutoffIso}'`
+        });
+        const staleList = stale.models || stale;
+        for (const email of staleList) {
+            try {
+                const locked = await this.#batchSendingService.updateStatusLock(
+                    this.#models.Email,
+                    email.id,
+                    'failed',
+                    ['submitting']
+                );
+                if (locked) {
+                    logging.warn(`Email resume: ${email.id} created_at=${email.get('created_at') && new Date(email.get('created_at')).toISOString()} exceeds max age (${maxAgeMs}ms) — flipped to failed for operator review`);
+                }
+            } catch (e) {
+                logging.error(e);
+            }
+        }
+
+        // Fresh rows: within the cutoff. Resume through the normal emailJob path.
+        const emails = await this.#models.Email.findAll({
+            filter: `status:submitting+created_at:>'${cutoffIso}'`
+        });
+        const list = emails.models || emails;
+        if (staleList.length === 0 && list.length === 0) {
+            return;
+        }
+        if (list.length > 0) {
+            logging.info(`Email resume: found ${list.length} email(s) in submitting status within max age (${maxAgeMs}ms)`);
+        }
+
+        for (const email of list) {
+            try {
+                await this.#resumeOneEmail(email);
+            } catch (e) {
+                logging.error(e);
+            }
+        }
+
+        logging.info(`Email resume scan complete: ${staleList.length} stale email(s) flipped to failed, ${list.length} fresh email(s) rescheduled`);
+    }
+
+    async #resumeOneEmail(email) {
+        const post = await email.getLazyRelation('post');
+        const postStatus = post ? post.get('status') : null;
+        const sendable = postStatus === 'published' || postStatus === 'sent';
+
+        if (!sendable) {
+            // Parent post was unpublished or deleted while the email was in flight.
+            // Can't resume — mark the email as failed so it stops showing as "submitting".
+            const locked = await this.#batchSendingService.updateStatusLock(
+                this.#models.Email,
+                email.id,
+                'failed',
+                ['submitting']
+            );
+            if (locked) {
+                logging.warn(`Email resume: ${email.id} parent post status=${postStatus} is not sendable — marked email as failed`);
+            }
+            return;
+        }
+
+        // Flip submitting -> pending so emailJob's status lock (['pending', 'failed']) admits it.
+        // If updateStatusLock returns undefined, another path raced us — just continue.
+        const locked = await this.#batchSendingService.updateStatusLock(
+            this.#models.Email,
+            email.id,
+            'pending',
+            ['submitting']
+        );
+        if (!locked) {
+            logging.info(`Email resume: ${email.id} status changed before lock could be taken — skipping`);
+            return;
+        }
+
+        // Structured breadcrumb so post-incident timing/batch state is recoverable from logs.
+        const breadcrumb = await this.#buildResumeBreadcrumb(email);
+        logging.warn(`Email resume: scheduling ${email.id} for re-send ${JSON.stringify(breadcrumb)}`);
+
+        // Skip checkLimits — this email already passed limits when first sent.
+        this.#batchSendingService.scheduleEmail(email);
+    }
+
+    async #buildResumeBreadcrumb(email) {
+        const counts = {};
+        let latestStatusWrite = email.get('updated_at') || email.get('created_at');
+        if (this.#models.EmailBatch) {
+            try {
+                const batches = await this.#models.EmailBatch.findAll({
+                    filter: `email_id:'${email.id}'`
+                });
+                for (const batch of batches.models || batches) {
+                    const status = batch.get('status');
+                    counts[status] = (counts[status] || 0) + 1;
+                    const updatedAt = batch.get('updated_at');
+                    if (updatedAt && (!latestStatusWrite || updatedAt > latestStatusWrite)) {
+                        latestStatusWrite = updatedAt;
+                    }
+                }
+            } catch (e) {
+                // Breadcrumb is best-effort; never block resume on it.
+                logging.warn(`Email resume: could not build breadcrumb for ${email.id}: ${e.message}`);
+            }
+        }
+        const msSinceLastStatusWrite = latestStatusWrite
+            ? Date.now() - new Date(latestStatusWrite).getTime()
+            : null;
+        const targetDeliveryWindowMs = this.#config?.get?.('bulkEmail:targetDeliveryWindow') ?? 0;
+        return {
+            email_id: email.id,
+            post_id: email.get('post_id'),
+            batch_counts_by_status: counts,
+            ms_since_last_status_write: msSinceLastStatusWrite,
+            target_delivery_window_ms: targetDeliveryWindowMs
+        };
     }
 
     async retryEmail(email) {
@@ -198,23 +352,28 @@ class EmailService {
             });
         }
 
+        if (email.get('status') !== 'failed') {
+            throw new errors.BadRequestError({
+                message: tpl(messages.retryEmailNotFailed)
+            });
+        }
+
         await this.checkLimits();
 
         // Change email status back to 'pending' before scheduling
         // so we have a immediate response when retrying an email (schedule can take a while to kick off sometimes)
-        if (email.get('status') === 'failed') {
-            await email.save({status: 'pending'}, {patch: true});
-        }
+        await email.save({status: 'pending'}, {patch: true});
 
         this.#batchSendingService.scheduleEmail(email);
         return email;
     }
 
     /**
-     * @params {string} [segment]
+     * @params {string|null} [audienceStatus] - the audience's free/paid status
+     *   ('status:free' / 'status:-free'), see EmailRenderer#describeSegment
      * @return {import('./email-renderer').MemberLike}
      */
-    getDefaultExampleMember(segment) {
+    getDefaultExampleMember(audienceStatus) {
         /**
          * @type {import('./email-renderer').MemberLike}
          */
@@ -224,8 +383,8 @@ class EmailService {
             email: 'jamie@example.com',
             name: 'Jamie Larson',
             createdAt: new Date(),
-            status: segment === 'status:free' ? 'free' : 'paid',
-            subscriptions: segment === 'status:free' ? [] : [
+            status: audienceStatus === 'status:free' ? 'free' : 'paid',
+            subscriptions: audienceStatus === 'status:free' ? [] : [
                 {
                     cancel_at_period_end: false,
                     trial_end_at: null,
@@ -240,14 +399,14 @@ class EmailService {
     /**
      * @private
      * @param {string} [email] (optional) Search for a member with this email address and use it as the example. If not found, defaults to the default but still uses the provided email address.
-     * @param {string} [segment] (optional) The segment to use for the example member
+     * @param {string|null} [audienceStatus] (optional) The audience's free/paid status, see EmailRenderer#describeSegment
      * @return {Promise<import('./email-renderer').MemberLike>}
      */
-    async getExampleMember(email, segment) {
+    async getExampleMember(email, audienceStatus) {
         /**
          * @type {import('./email-renderer').MemberLike}
          */
-        const exampleMember = this.getDefaultExampleMember(segment);
+        const exampleMember = this.getDefaultExampleMember(audienceStatus);
 
         // fetch any matching members so that replacements use expected values
         if (email) {
@@ -259,7 +418,7 @@ class EmailService {
                 exampleMember.name = member.get('name');
                 exampleMember.createdAt = member.get('created_at');
 
-                if (segment === 'status:-free' && member.get('status') !== 'free') {
+                if (audienceStatus === 'status:-free' && member.get('status') !== 'free') {
                     // Make sure the example member matches the chosen segment (otherwise we'll send an email to free segment, but include a paid member details, which looks like a bug)
                     exampleMember.status = member.get('status');
                     const subscriptions = (await member.getLazyRelation('stripeSubscriptions')).toJSON();
@@ -297,14 +456,17 @@ class EmailService {
      *
      * @param {*} post
      * @param {*} newsletter
-     * @param {import('./email-renderer').Segment} segment
+     * @param {'free'|'paid'|null} memberStatus
+     * @param {string} [memberTier] - narrow the paid audience to a single tier
      * @returns {Promise<{subject: string, html: string, plaintext: string}>} Email preview
      */
-    async previewEmail(post, newsletter, segment) {
-        const exampleMember = await this.getExampleMember(null, segment);
+    async previewEmail(post, newsletter, memberStatus, memberTier) {
+        const renderSegment = this.#emailRenderer.getSegmentForAudience(post, memberStatus, memberTier);
+        const audience = this.#emailRenderer.describeSegment(post, renderSegment);
+        const exampleMember = await this.getExampleMember(null, audience.status);
 
         const subject = this.#emailRenderer.getSubject(post);
-        let {html, plaintext, replacements} = await this.#emailRenderer.renderBody(post, newsletter, segment, {clickTrackingEnabled: false});
+        let {html, plaintext, replacements} = await this.#emailRenderer.renderBody(post, newsletter, renderSegment, {clickTrackingEnabled: false});
 
         return {
             subject,
@@ -317,19 +479,23 @@ class EmailService {
      *
      * @param {*} post
      * @param {*} newsletter
-     * @param {import('./email-renderer').Segment} segment
+     * @param {'free'|'paid'|null} memberStatus
      * @param {string[]} emails
+     * @param {string} [memberTier] - narrow the paid audience to a single tier
      */
-    async sendTestEmail(post, newsletter, segment, emails) {
+    async sendTestEmail(post, newsletter, memberStatus, emails, memberTier) {
+        const renderSegment = this.#emailRenderer.getSegmentForAudience(post, memberStatus, memberTier);
+        const audience = this.#emailRenderer.describeSegment(post, renderSegment);
+
         const members = [];
         for (const email of emails) {
-            members.push(await this.getExampleMember(email, segment));
+            members.push(await this.getExampleMember(email, audience.status));
         }
 
         await this.#sendingService.send({
             post,
             newsletter,
-            segment,
+            segment: renderSegment,
             members,
             emailId: null
         }, {

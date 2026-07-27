@@ -28,7 +28,7 @@
 
 This boilerplate is a pre-configured Ghost blog setup optimized for deployment on [Railway](https://railway.app?referralCode=-Yg50p). It is based on the published standalone Ghost source package, includes the full backend and admin dashboard, and keeps the simple Railway deployment flow from the earlier template while updating the codebase to Ghost 6.
 
-Updated to `version 6.47.0`
+Updated to `version 6.54.0`
 
 ## Preconfigured Features & Integrations
 
@@ -119,10 +119,17 @@ pnpm exec knex-migrator-init
 npm start
 ```
 
-For development mode:
+For a direct development-mode boot of the unpacked standalone package:
 
 ```bash
-npm run dev
+NODE_ENV=development node index.js
+```
+
+PowerShell:
+
+```powershell
+$env:NODE_ENV='development'
+node index.js
 ```
 
 ### Notes for Existing Template Users
@@ -152,7 +159,7 @@ This Ghost 6 setup has been validated on Ghost 6 with MySQL and Railway:
 - `pnpm install` - Install dependencies
 - `npm run postinstall` - Generate runtime config and verify bootstrap files
 - `npm start` - Regenerate config and start Ghost in production mode
-- `npm run dev` - Start Ghost in development mode
+- `NODE_ENV=development node index.js` - Start Ghost in development mode
 
 <p align="center">
   <a href="https://funkyton.com/">

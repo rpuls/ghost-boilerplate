@@ -12,7 +12,6 @@ const SLUG_KEY_TYPE = {
 // method without polluting the file with `any`. The generic constrains
 // known internal slugs to their seeded type; arbitrary slugs accept any
 // type.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const models = require('../../models');
 /**
  * Process-lifetime cache of internal-integration API keys, keyed by slug.

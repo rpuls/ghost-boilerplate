@@ -1,0 +1,1 @@
+function e({filter:e}={}){let t=new URLSearchParams;e&&t.set(`filter`,e);let n=t.toString();return n?`/members?${n}`:`/members`}export{e as t};

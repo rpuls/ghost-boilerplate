@@ -5,6 +5,7 @@ const tpl = require('@tryghost/tpl');
 const db = require('../db');
 const DatabaseInfo = require('@tryghost/database-info');
 const schema = require('./schema');
+const {defaultIndexName} = require('./lib/default-index-name');
 
 const messages = {
     hasPrimaryKeySQLiteError: 'Must use hasPrimaryKeySQLite on an SQLite3 database',
@@ -99,7 +100,7 @@ function dropNullable(tableName, column, transaction = db.knex) {
  * @param {import('knex').Knex.Transaction} [transaction]
  * @param {object} columnSpec
   * @param {object} [options]
- * @param {'inplace'|'copy'|'auto'} [options.algorithm] - MySQL only
+ * @param {'instant'|'inplace'|'copy'|'auto'} [options.algorithm] - MySQL only
  */
 async function addColumn(tableName, column, transaction = db.knex, columnSpec, options = {}) {
     const addColumnBuilder = transaction.schema.table(tableName, function (table) {
@@ -136,7 +137,7 @@ async function addColumn(tableName, column, transaction = db.knex, columnSpec, o
  * @param {import('knex').Knex} [transaction]
  * @param {object} [columnSpec]
  * @param {object} [options]
- * @param {'inplace'|'copy'|'auto'} [options.algorithm] - MySQL only
+ * @param {'instant'|'inplace'|'copy'|'auto'} [options.algorithm] - MySQL only
  */
 async function dropColumn(tableName, column, transaction = db.knex, columnSpec = {}, options = {}) {
     if (Object.prototype.hasOwnProperty.call(columnSpec, 'references')) {
@@ -192,18 +193,37 @@ async function renameColumn(tableName, from, to, transaction = db.knex) {
 }
 
 /**
+ * Builds the column arguments for a MySQL index prefix, such as `col(123)`.
+ *
+ * @param {import('knex').Knex} knex
+ * @param {string|string[]} columns
+ * @param {number} length
+ * @returns {import('knex').Knex.Raw[]}
+ */
+function prefixIndexColumns(knex, columns, length) {
+    return (Array.isArray(columns) ? columns : [columns])
+        .map(col => knex.raw('?? (?)', [col, length]));
+}
+
+/**
  * Adds an non-unique index to a table over the given columns.
  *
  * @param {string} tableName - name of the table to add indexes to
  * @param {string|string[]} columns - column(s) to add indexes for
  * @param {import('knex').Knex} [transaction] - connection object containing knex reference
+ * @param {object} [options]
+ * @param {number} [options.length] - MySQL only: create a prefix index of this many characters
  */
-async function addIndex(tableName, columns, transaction = db.knex) {
+async function addIndex(tableName, columns, transaction = db.knex, options = {}) {
     try {
         logging.info(`Adding index for '${columns}' in table '${tableName}'`);
 
         return await transaction.schema.table(tableName, function (table) {
-            table.index(columns);
+            if (options.length && DatabaseInfo.isMySQL(transaction)) {
+                table.index(prefixIndexColumns(transaction, columns, options.length), defaultIndexName(tableName, columns));
+            } else {
+                table.index(columns);
+            }
         });
     } catch (err) {
         if (err.code === 'SQLITE_ERROR') {
@@ -500,7 +520,21 @@ function createTable(table, transaction = db.knex, tableSpec = schema[table]) {
             .forEach(column => addTableColumn(table, t, column, tableSpec[column]));
 
         if (tableSpec['@@INDEXES@@']) {
-            tableSpec['@@INDEXES@@'].forEach(index => t.index(index));
+            tableSpec['@@INDEXES@@'].forEach((index) => {
+                if (index && typeof index === 'object' && !Array.isArray(index)) {
+                    if (index.length && DatabaseInfo.isMySQL(transaction)) {
+                        t.index(
+                            prefixIndexColumns(transaction, index.columns, index.length),
+                            defaultIndexName(table, index.columns)
+                        );
+                    } else {
+                        // SQLite doesn't support prefix indexes, so we index the whole thing.
+                        t.index(index.columns);
+                    }
+                } else {
+                    t.index(index);
+                }
+            });
         }
         if (tableSpec['@@UNIQUE_CONSTRAINTS@@']) {
             tableSpec['@@UNIQUE_CONSTRAINTS@@'].forEach(unique => t.unique(unique));
@@ -520,13 +554,45 @@ function deleteTable(table, transaction = db.knex) {
 }
 
 /**
+ * Create (or replace) a database VIEW.
+ *
+ * On MySQL the view is created with `SQL SECURITY INVOKER` so it runs with the
+ * privileges of the querying user rather than binding to the DEFINER account
+ * of whoever happened to run the migration. A DEFINER-bound view breaks when
+ * the database is restored under a different MySQL user (Ghost(Pro) restores,
+ * self-host server moves) — the view errors at query time because the original
+ * account does not exist on the target — and it leaks the internal account name
+ * into every mysqldump. INVOKER avoids both problems.
+ *
+ * SQLite has no DEFINER / SQL SECURITY concept, so the plain knex builder is
+ * used there (tests and local dev).
+ *
+ * All view creation — both `knex-migrator init` and versioned migrations —
+ * should go through this helper so every view is portable by default.
+ *
+ * @param {string} name - the view name
+ * @param {string} viewSql - the raw SELECT body (everything after `AS`)
+ * @param {import('knex').Knex} [transaction] - connection to the DB
+ */
+async function createViewOrReplace(name, viewSql, transaction = db.knex) {
+    if (DatabaseInfo.isMySQL(transaction)) {
+        await transaction.raw(`CREATE OR REPLACE SQL SECURITY INVOKER VIEW \`${name}\` AS ${viewSql}`);
+        return;
+    }
+
+    await transaction.schema.createViewOrReplace(name, function (view) {
+        view.as(transaction.raw(viewSql));
+    });
+}
+
+/**
  * @param {import('knex').Knex} [transaction] - connection to the DB
  */
 async function getTables(transaction = db.knex) {
     const client = transaction.client.config.client;
 
-    if (client === 'sqlite3') {
-        const response = await transaction.raw('select * from sqlite_master where type = "table"');
+    if (DatabaseInfo.isSQLite(transaction)) {
+        const response = await transaction.raw("select * from sqlite_master where type = 'table'");
         return _.reject(_.map(response, 'tbl_name'), name => name === 'sqlite_sequence');
     } else if (client === 'mysql2') {
         const response = await transaction.raw('show full tables where Table_type = \'BASE TABLE\'');
@@ -543,7 +609,7 @@ async function getTables(transaction = db.knex) {
 async function getIndexes(table, transaction = db.knex) {
     const client = transaction.client.config.client;
 
-    if (client === 'sqlite3') {
+    if (DatabaseInfo.isSQLite(transaction)) {
         const response = await transaction.raw(`pragma index_list("${table}")`);
         return _.flatten(_.map(response, 'name'));
     } else if (client === 'mysql2') {
@@ -559,17 +625,15 @@ async function getIndexes(table, transaction = db.knex) {
  * @param {import('knex').Knex} [transaction] - connection to the DB
  */
 async function getColumns(table, transaction = db.knex) {
-    const client = transaction.client.config.client;
-
-    if (client === 'sqlite3') {
+    if (DatabaseInfo.isSQLite(transaction)) {
         const response = await transaction.raw(`pragma table_info("${table}")`);
         return _.flatten(_.map(response, 'name'));
-    } else if (client === 'mysql2') {
+    } else if (DatabaseInfo.isMySQL(transaction)) {
         const response = await transaction.raw(`SHOW COLUMNS from ${table}`);
         return _.flatten(_.map(response[0], 'Field'));
     }
 
-    return Promise.reject(tpl(messages.noSupportForDatabase, {client: client}));
+    return Promise.reject(tpl(messages.noSupportForDatabase, {client: transaction.client.config.client}));
 }
 
 function createColumnMigration(...migrations) {
@@ -605,6 +669,7 @@ function createColumnMigration(...migrations) {
 module.exports = {
     createTable,
     deleteTable,
+    createViewOrReplace,
     getTables,
     getIndexes,
     addUnique,

@@ -1,0 +1,69 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = unparse;
+const papaparse_1 = __importDefault(require("papaparse"));
+const DEFAULT_COLUMNS = [
+    'id',
+    'email',
+    'name',
+    'note',
+    'subscribed_to_emails',
+    'complimentary_plan',
+    'stripe_customer_id',
+    'created_at',
+    'deleted_at',
+    'labels',
+    'tiers',
+    'gift_id'
+];
+function unparse(rows, columns = DEFAULT_COLUMNS, { escapeFormulae = true } = {}) {
+    const outputColumns = columns.map((column) => {
+        if (column === 'subscribed') {
+            return 'subscribed_to_emails';
+        }
+        return column;
+    });
+    if (!outputColumns.includes('error') && rows.some(row => row.error)) {
+        outputColumns.push('error');
+    }
+    const mappedRows = rows.map((row) => {
+        let labels = '';
+        if (typeof row.labels === 'string') {
+            labels = row.labels;
+        }
+        else if (Array.isArray(row.labels)) {
+            labels = row.labels.map((l) => {
+                return typeof l === 'string' ? l : l.name;
+            }).join(',');
+        }
+        let tiers = '';
+        if (Array.isArray(row.tiers)) {
+            tiers = row.tiers.map((tier) => {
+                return tier.name;
+            }).join(',');
+        }
+        return {
+            id: row.id,
+            email: row.email,
+            name: row.name,
+            note: row.note,
+            subscribed_to_emails: 'subscribed' in row ? row.subscribed : row.subscribed_to_emails,
+            complimentary_plan: row.comped || row.complimentary_plan,
+            stripe_customer_id: row.subscriptions?.[0]?.customer?.id || row.stripe_customer_id,
+            created_at: row.created_at,
+            deleted_at: row.deleted_at,
+            labels,
+            tiers,
+            import_tier: row.import_tier || null,
+            gift_id: row.gift_id || null,
+            error: row.error || null
+        };
+    });
+    return papaparse_1.default.unparse(mappedRows, {
+        escapeFormulae,
+        columns: outputColumns
+    });
+}

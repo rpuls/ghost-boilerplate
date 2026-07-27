@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createFindResource = createFindResource;
-/* eslint-disable @typescript-eslint/no-require-imports */
 const _ = require('lodash');
 const resourcesConfig = require('./config');
 const POST_SCOPE = { type: 'post', status: 'published' };

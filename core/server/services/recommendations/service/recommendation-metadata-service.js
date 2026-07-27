@@ -1,5 +1,4 @@
 "use strict";
-/* eslint-disable ghost/filenames/match-exported-class */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RecommendationMetadataService = void 0;
 class RecommendationMetadataService {

@@ -1,18 +1,13 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import moment from 'moment';
 import logging from '@tryghost/logging';
+import type {SchedulerAdapter, SchedulerJob} from '@tryghost/adapter-base-scheduling';
 import type {InternalApiKey, InternalKeys} from '../internal-keys';
-import type {SchedulerAdapter, SchedulerJob} from '../../adapters/scheduling/types';
 
 // CJS-only modules — typed loosely below. models is the Bookshelf registry
 // without TS declarations; the rest are JS modules without types.
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const models = require('../../models');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const urlUtils = require('../../../shared/url-utils');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
+const urlUtils = require('../../../shared/url-utils').default;
 const {getSignedAdminToken} = require('../../adapters/scheduling/utils');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const events = require('../../lib/common/events');
 
 interface PostSchedulingDeps {

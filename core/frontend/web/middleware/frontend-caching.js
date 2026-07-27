@@ -4,6 +4,7 @@
 const config = require('../../../shared/config');
 const shared = require('../../../server/web/shared');
 const {api} = require('../../services/proxy');
+const {isGiftRequest} = require('../../services/routing/controllers/entry/gift-links');
 const preview = require('../../services/theme-engine/preview');
 
 /**
@@ -66,6 +67,13 @@ const getMiddleware = async (getFreeTier = async () => {
 
         // CASE: Never cache preview routes
         if (req.path?.startsWith('/p/')) {
+            return shared.middleware.cacheControl('noCache')(req, res, next);
+        }
+
+        // CASE: never cache gift-link reads. A ?gift render holds unlocked gated
+        // content with no member cookie, so the edge would otherwise serve it to
+        // everyone.
+        if (isGiftRequest(req)) {
             return shared.middleware.cacheControl('noCache')(req, res, next);
         }
 

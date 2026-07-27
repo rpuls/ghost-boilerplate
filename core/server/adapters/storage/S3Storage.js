@@ -5,7 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
-const ghost_storage_base_1 = __importDefault(require("ghost-storage-base"));
+const zod_1 = require("zod");
+const ghost_storage_base_1 = require("ghost-storage-base");
 const tpl_1 = __importDefault(require("@tryghost/tpl"));
 const errors_1 = __importDefault(require("@tryghost/errors"));
 const logging_1 = __importDefault(require("@tryghost/logging"));
@@ -30,11 +31,57 @@ const messages = {
     multipartUploadReadFailed: 'There was an error uploading the file. The file may have been modified or removed during upload.',
     missingMultipartThreshold: 'S3Storage requires multipartUploadThresholdBytes option',
     missingMultipartChunkSize: 'S3Storage requires multipartChunkSizeBytes option',
-    multipartChunkSizeTooSmall: 'S3Storage multipartChunkSizeBytes must be at least 5 MiB (5242880 bytes)'
+    multipartChunkSizeTooSmall: 'S3Storage multipartChunkSizeBytes must be at least 5 MiB (5242880 bytes)',
+    multipartThresholdNotInteger: 'S3Storage multipartUploadThresholdBytes must be an integer',
+    multipartChunkSizeNotInteger: 'S3Storage multipartChunkSizeBytes must be an integer',
+    partialCredentials: 'S3Storage requires both accessKeyId and secretAccessKey when either is provided'
 };
 const stripLeadingAndTrailingSlashes = (value = '') => value.replace(/^\/+|\/+$/g, '');
 const stripTrailingSlash = (value = '') => value.replace(/\/+$/, '');
-class S3Storage extends ghost_storage_base_1.default {
+// Validates and normalises the S3Storage config. The slash-trimmed fields
+// (`staticFileURLPrefix`, `cdnUrl`, `tenantPrefix`) are stripped via `transform`
+// so the constructor consumes ready-to-use values, and the required-field guards
+// run against the trimmed result.
+const configSchema = zod_1.z.object({
+    bucket: zod_1.z.string({ error: (0, tpl_1.default)(messages.missingBucket) }).min(1, { error: (0, tpl_1.default)(messages.missingBucket) }),
+    staticFileURLPrefix: zod_1.z.string({ error: (0, tpl_1.default)(messages.missingStaticFileURLPrefix) })
+        .transform(stripLeadingAndTrailingSlashes)
+        .refine(value => value.length > 0, { error: (0, tpl_1.default)(messages.missingStaticFileURLPrefix) }),
+    cdnUrl: zod_1.z.string({ error: (0, tpl_1.default)(messages.missingCdnUrl) })
+        .transform(stripTrailingSlash)
+        .refine(value => value.length > 0, { error: (0, tpl_1.default)(messages.missingCdnUrl) }),
+    multipartUploadThresholdBytes: zod_1.z.number({ error: (0, tpl_1.default)(messages.missingMultipartThreshold) })
+        .int({ error: (0, tpl_1.default)(messages.multipartThresholdNotInteger) })
+        .positive({ error: (0, tpl_1.default)(messages.missingMultipartThreshold) }),
+    multipartChunkSizeBytes: zod_1.z.number({ error: (0, tpl_1.default)(messages.missingMultipartChunkSize) })
+        .int({ error: (0, tpl_1.default)(messages.multipartChunkSizeNotInteger) })
+        .check((ctx) => {
+        // Emit a single issue: a falsy value reads as "missing", a positive
+        // value below the floor as "too small".
+        if (!ctx.value) {
+            ctx.issues.push({ code: 'custom', message: (0, tpl_1.default)(messages.missingMultipartChunkSize), input: ctx.value });
+        }
+        else if (ctx.value < MIN_MULTIPART_CHUNK_SIZE) {
+            ctx.issues.push({ code: 'custom', message: (0, tpl_1.default)(messages.multipartChunkSizeTooSmall), input: ctx.value });
+        }
+    }),
+    tenantPrefix: zod_1.z.string().transform(stripLeadingAndTrailingSlashes).optional(),
+    region: zod_1.z.string().optional(),
+    endpoint: zod_1.z.string().optional(),
+    forcePathStyle: zod_1.z.boolean().optional(),
+    accessKeyId: zod_1.z.string().optional(),
+    secretAccessKey: zod_1.z.string().optional(),
+    sessionToken: zod_1.z.string().optional()
+}).refine((config) => {
+    // accessKeyId and secretAccessKey must be supplied together (or not at all) —
+    // a partial pair would silently fall back to ambient AWS credentials.
+    const hasAccessKey = Boolean(config.accessKeyId);
+    const hasSecretKey = Boolean(config.secretAccessKey);
+    const hasSessionToken = Boolean(config.sessionToken);
+    const hasCredentialPair = hasAccessKey && hasSecretKey;
+    return !((hasAccessKey || hasSecretKey || hasSessionToken) && !hasCredentialPair);
+}, { error: (0, tpl_1.default)(messages.partialCredentials) });
+class S3Storage extends ghost_storage_base_1.StorageBase {
     client;
     bucket;
     tenantPrefix;
@@ -42,45 +89,38 @@ class S3Storage extends ghost_storage_base_1.default {
     staticFileURLPrefix;
     multipartUploadThresholdBytes;
     multipartChunkSizeBytes;
-    constructor(options) {
+    /**
+     * Parse + normalise the config, throwing an actionable IncorrectUsageError
+     * on the first problem. Shared by `validate` (boot-time check) and the
+     * constructor (which uses the normalised result).
+     */
+    static parseConfig(config) {
+        const result = configSchema.safeParse(config);
+        if (!result.success) {
+            throw new errors_1.default.IncorrectUsageError({
+                message: [...new Set(result.error.issues.map(issue => issue.message))].join('; ')
+            });
+        }
+        return result.data;
+    }
+    /**
+     * Validate the options S3Storage would be constructed with, without
+     * instantiating it (no S3 client is created). Called by the adapter manager
+     * at boot so misconfiguration fails early. Narrows `config` to
+     * `S3StorageOptions`.
+     */
+    static validate(config) {
+        S3Storage.parseConfig(config);
+    }
+    constructor(config) {
         super();
-        if (!options.bucket) {
-            throw new errors_1.default.IncorrectUsageError({
-                message: (0, tpl_1.default)(messages.missingBucket)
-            });
-        }
+        const options = S3Storage.parseConfig(config);
         this.bucket = options.bucket;
-        this.tenantPrefix = stripLeadingAndTrailingSlashes(options.tenantPrefix);
-        const staticFileURLPrefix = stripLeadingAndTrailingSlashes(options.staticFileURLPrefix);
-        if (!staticFileURLPrefix) {
-            throw new errors_1.default.IncorrectUsageError({
-                message: (0, tpl_1.default)(messages.missingStaticFileURLPrefix)
-            });
-        }
-        this.staticFileURLPrefix = staticFileURLPrefix;
-        this.storagePath = staticFileURLPrefix;
-        this.cdnUrl = stripTrailingSlash(options.cdnUrl || '');
-        if (!this.cdnUrl) {
-            throw new errors_1.default.IncorrectUsageError({
-                message: (0, tpl_1.default)(messages.missingCdnUrl)
-            });
-        }
-        if (!options.multipartUploadThresholdBytes) {
-            throw new errors_1.default.IncorrectUsageError({
-                message: (0, tpl_1.default)(messages.missingMultipartThreshold)
-            });
-        }
+        this.tenantPrefix = options.tenantPrefix ?? '';
+        this.staticFileURLPrefix = options.staticFileURLPrefix;
+        this.storagePath = options.staticFileURLPrefix;
+        this.cdnUrl = options.cdnUrl;
         this.multipartUploadThresholdBytes = options.multipartUploadThresholdBytes;
-        if (!options.multipartChunkSizeBytes) {
-            throw new errors_1.default.IncorrectUsageError({
-                message: (0, tpl_1.default)(messages.missingMultipartChunkSize)
-            });
-        }
-        if (options.multipartChunkSizeBytes < MIN_MULTIPART_CHUNK_SIZE) {
-            throw new errors_1.default.IncorrectUsageError({
-                message: (0, tpl_1.default)(messages.multipartChunkSizeTooSmall)
-            });
-        }
         this.multipartChunkSizeBytes = options.multipartChunkSizeBytes;
         const clientConfig = {
             region: options.region,
@@ -94,7 +134,11 @@ class S3Storage extends ghost_storage_base_1.default {
                 sessionToken: options.sessionToken
             };
         }
-        this.client = options.s3Client || new client_s3_1.S3Client(clientConfig);
+        // `s3Client` is a test-only injection seam — it never comes from config
+        // (nconf holds static values), so it's read from the raw input rather
+        // than the validated schema output.
+        const injectedClient = config?.s3Client;
+        this.client = injectedClient || new client_s3_1.S3Client(clientConfig);
     }
     async save(file, targetDir) {
         const dir = targetDir || this.getTargetDir();

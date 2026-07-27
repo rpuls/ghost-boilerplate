@@ -121,13 +121,10 @@ module.exports = {
         feature_image_caption: {type: 'text', maxlength: 65535, nullable: true},
         email_only: {type: 'boolean', nullable: false, defaultTo: false}
     },
-    // Every gift link issued for a post; reissued tokens remain as history. Liveness lives in post_gift_links.
+    // Every gift link added to a post; replaced tokens remain as history. Liveness lives in post_gift_links.
     gift_links: {
         token: {type: 'string', maxlength: 32, nullable: false, primary: true},
         post_id: {type: 'string', maxlength: 24, nullable: false, references: 'posts.id', cascadeDelete: true},
-        redeemed_count: {type: 'integer', nullable: false, unsigned: true, defaultTo: 0},
-        last_redeemed_at: {type: 'dateTime', nullable: true},
-        revoked_at: {type: 'dateTime', nullable: true},
         created_at: {type: 'dateTime', nullable: false},
         updated_at: {type: 'dateTime', nullable: true}
     },
@@ -659,6 +656,43 @@ module.exports = {
         label_id: {type: 'string', maxlength: 24, nullable: false, references: 'labels.id', cascadeDelete: true},
         sort_order: {type: 'integer', nullable: false, unsigned: true, defaultTo: 0}
     },
+    members_custom_fields: {
+        id: {type: 'string', maxlength: 24, nullable: false, primary: true},
+        key: {type: 'string', maxlength: 191, nullable: false, unique: true},
+        name: {type: 'string', maxlength: 191, nullable: false, unique: true},
+        type: {
+            type: 'string',
+            maxlength: 50,
+            nullable: false,
+            // Keep in sync with FIELD_TYPE_IDS in @tryghost/custom-field-types,
+            // the source of truth (this static schema can't import it).
+            validations: {
+                isIn: [[
+                    'short_text',
+                    'long_text',
+                    'address'
+                ]]
+            }
+        },
+        status: {type: 'string', maxlength: 50, nullable: false, defaultTo: 'active', validations: {isIn: [['active', 'archived']]}},
+        created_at: {type: 'dateTime', nullable: false},
+        updated_at: {type: 'dateTime', nullable: true}
+    },
+    members_custom_field_values: {
+        id: {type: 'string', maxlength: 24, nullable: false, primary: true},
+        custom_field_id: {type: 'string', maxlength: 24, nullable: false, references: 'members_custom_fields.id', cascadeDelete: true},
+        member_id: {type: 'string', maxlength: 24, nullable: false, references: 'members.id', cascadeDelete: true},
+        // Exactly one value column is populated per row, chosen by the field
+        // type's storage type in @tryghost/custom-field-types, whose byte bound
+        // on long_text matches this column exactly.
+        value_text: {type: 'text', maxlength: 65535, nullable: true},
+        value_json: {type: 'text', maxlength: 65535, nullable: true},
+        created_at: {type: 'dateTime', nullable: false},
+        updated_at: {type: 'dateTime', nullable: true},
+        '@@UNIQUE_CONSTRAINTS@@': [
+            ['member_id', 'custom_field_id']
+        ]
+    },
     members_stripe_customers: {
         id: {type: 'string', maxlength: 24, nullable: false, primary: true},
         member_id: {type: 'string', maxlength: 24, nullable: false, unique: false, references: 'members.id', cascadeDelete: true},
@@ -1009,7 +1043,11 @@ module.exports = {
         created_at: {type: 'dateTime', nullable: false},
         updated_at: {type: 'dateTime', nullable: false},
         '@@INDEXES@@': [
-            ['post_id', 'parent_id', 'pinned_at']
+            ['post_id', 'parent_id', 'pinned_at'],
+            ['created_at'],
+            ['status'],
+            ['in_reply_to_id', 'status'],
+            ['parent_id', 'in_reply_to_id', 'status']
         ]
     },
     comment_likes: {
@@ -1037,20 +1075,6 @@ module.exports = {
         updated_at: {type: 'dateTime', nullable: true},
         metadata: {type: 'string', maxlength: 2000, nullable: true},
         queue_entry: {type: 'integer', nullable: true, unsigned: true}
-    },
-    redirects: {
-        id: {type: 'string', maxlength: 24, nullable: false, primary: true},
-        from: {type: 'string', maxlength: 191, nullable: false, index: true},
-        to: {type: 'string', maxlength: 2000, nullable: false},
-        post_id: {type: 'string', maxlength: 24, nullable: true, unique: false, references: 'posts.id', setNullDelete: true},
-        created_at: {type: 'dateTime', nullable: false},
-        updated_at: {type: 'dateTime', nullable: true}
-    },
-    members_click_events: {
-        id: {type: 'string', maxlength: 24, nullable: false, primary: true},
-        member_id: {type: 'string', maxlength: 24, nullable: false, references: 'members.id', cascadeDelete: true},
-        redirect_id: {type: 'string', maxlength: 24, nullable: false, references: 'redirects.id', cascadeDelete: true},
-        created_at: {type: 'dateTime', nullable: false}
     },
     members_feedback: {
         id: {type: 'string', maxlength: 24, nullable: false, primary: true},
@@ -1226,9 +1250,27 @@ module.exports = {
         email_subject: {type: 'string', maxlength: 300, nullable: true},
         email_lexical: {type: 'text', maxlength: 1000000000, fieldtype: 'long', nullable: true},
         email_design_setting_id: {type: 'string', maxlength: 24, nullable: true, references: 'email_design_settings.id', setNullDelete: true},
+        email_sent_count: {type: 'integer', nullable: true, unsigned: true},
+        email_opened_count: {type: 'integer', nullable: true, unsigned: true},
+        email_clicked_count: {type: 'integer', nullable: true, unsigned: true},
         '@@UNIQUE_CONSTRAINTS@@': [
             ['created_at', 'action_id']
         ]
+    },
+    redirects: {
+        id: {type: 'string', maxlength: 24, nullable: false, primary: true},
+        from: {type: 'string', maxlength: 191, nullable: false, index: true},
+        to: {type: 'string', maxlength: 2000, nullable: false},
+        post_id: {type: 'string', maxlength: 24, nullable: true, unique: false, references: 'posts.id', setNullDelete: true},
+        automation_action_revision_id: {type: 'string', maxlength: 24, nullable: true, references: 'automation_action_revisions.id', setNullDelete: true},
+        created_at: {type: 'dateTime', nullable: false},
+        updated_at: {type: 'dateTime', nullable: true}
+    },
+    members_click_events: {
+        id: {type: 'string', maxlength: 24, nullable: false, primary: true},
+        member_id: {type: 'string', maxlength: 24, nullable: false, references: 'members.id', cascadeDelete: true},
+        redirect_id: {type: 'string', maxlength: 24, nullable: false, references: 'redirects.id', cascadeDelete: true},
+        created_at: {type: 'dateTime', nullable: false}
     },
     automation_action_edges: {
         source_action_id: {type: 'string', maxlength: 24, nullable: false, references: 'automation_actions.id', restrictDelete: true},
@@ -1255,7 +1297,10 @@ module.exports = {
         finished_at: {type: 'dateTime', nullable: true},
         status: {type: 'string', maxlength: 50, nullable: false, defaultTo: 'pending', validations: {isIn: [['pending', 'automation disabled', 'failed', 'finished', 'member changed status', 'member unsubscribed']]}},
         locked_by: {type: 'string', maxlength: 191, nullable: true},
-        locked_at: {type: 'dateTime', nullable: true}
+        locked_at: {type: 'dateTime', nullable: true},
+        '@@INDEXES@@': [
+            ['status', 'ready_at', 'created_at', 'id']
+        ]
     },
     welcome_email_automated_emails: {
         id: {type: 'string', maxlength: 24, nullable: false, primary: true},
@@ -1294,8 +1339,31 @@ module.exports = {
         member_uuid: {type: 'string', maxlength: 36, nullable: false},
         member_email: {type: 'string', maxlength: 191, nullable: false},
         member_name: {type: 'string', maxlength: 191, nullable: true},
+        mailgun_message_id: {type: 'string', maxlength: 1000, nullable: true},
+        delivered_at: {type: 'dateTime', nullable: true},
+        opened_at: {type: 'dateTime', nullable: true},
+        clicked_at: {type: 'dateTime', nullable: true},
+        track_opens: {type: 'boolean', nullable: false, defaultTo: false},
+        track_clicks: {type: 'boolean', nullable: false, defaultTo: false},
         created_at: {type: 'dateTime', nullable: false},
-        updated_at: {type: 'dateTime', nullable: true}
+        updated_at: {type: 'dateTime', nullable: true},
+        '@@INDEXES@@': [
+            // `mailgun_message_id` is too long for a MySQL index, so we use a
+            // prefix.
+            //
+            // We choose 31 because Mailgun message IDs look like this:
+            //
+            //     20200420080647.ab01cd02ef03ba04@mailgun.domain.example
+            //     YYYYMMDDHHMMSS.RANDOM-HEX-BYTES@DOMAIN
+            //
+            // That first part is unlikely to have conflicts, so let's use
+            // that. This index is for performance, not uniqueness, so it's
+            // okay if there's a conflict.
+            //
+            // Note that this prefix index only happens for MySQL. SQLite
+            // indexes the full value.
+            {columns: ['mailgun_message_id'], length: 31}
+        ]
     },
     gifts: {
         id: {type: 'string', maxlength: 24, nullable: false, primary: true},

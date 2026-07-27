@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostRevisions = void 0;
 class PostRevisions {
     config;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     model;
     constructor(deps) {
         this.config = deps.config;
@@ -79,7 +78,6 @@ class PostRevisions {
             post_status: input.post_status
         };
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async removeAuthorFromRevisions(authorId, options) {
         const revisions = await this.model.findAll({
             filter: `author_id:'${authorId}'`,

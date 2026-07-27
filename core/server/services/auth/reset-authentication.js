@@ -5,9 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = resetAuthentication;
 const internal_keys_1 = __importDefault(require("../internal-keys"));
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const modelsDefault = require('../../models');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { deleteAllSessions: deleteAllSessionsDefault } = require('./session');
 /**
  * Rotation, user lock and the audit row commit in a single transaction so

@@ -1,3 +1,3 @@
-const loader = require('./loader');
-
-module.exports = loader.loadNconf();
+"use strict";
+const loader_1 = require("./loader");
+module.exports = (0, loader_1.loadNconf)();

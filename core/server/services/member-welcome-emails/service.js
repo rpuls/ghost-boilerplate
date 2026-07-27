@@ -1,6 +1,6 @@
 const logging = require('@tryghost/logging');
 const errors = require('@tryghost/errors');
-const urlUtils = require('../../../shared/url-utils');
+const urlUtils = require('../../../shared/url-utils').default;
 const settingsCache = require('../../../shared/settings-cache');
 const verifyEmailTemplate = require('../newsletters/emails/verify-email');
 const MagicLink = require('../lib/magic-link/magic-link');
@@ -12,7 +12,7 @@ const mail = require('../mail');
 const labs = require('../../../shared/labs');
 const {Automation, EmailDesignSetting, Newsletter} = require('../../models');
 const MemberWelcomeEmailRenderer = require('./member-welcome-email-renderer');
-const {DEFAULT_EMAIL_DESIGN_SETTING_SLUG, MEMBER_WELCOME_EMAIL_LOG_KEY, MEMBER_WELCOME_EMAIL_TAG, MEMBER_WELCOME_EMAIL_SLUGS, MESSAGES} = require('./constants');
+const {AUTOMATION_EMAIL_TAG, DEFAULT_EMAIL_DESIGN_SETTING_SLUG, MEMBER_WELCOME_EMAIL_LOG_KEY, MEMBER_WELCOME_EMAIL_TAG, MEMBER_WELCOME_EMAIL_SLUGS, MESSAGES} = require('./constants');
 
 const VERIFIED_SENDER_PROPERTIES = ['sender_reply_to'];
 const WELCOME_EMAIL_FILTER = `slug:${MEMBER_WELCOME_EMAIL_SLUGS.free},slug:${MEMBER_WELCOME_EMAIL_SLUGS.paid}`;
@@ -367,10 +367,11 @@ class MemberWelcomeEmailService {
      * @param {string} options.email.subject
      * @param {null | object} options.email.designSettings
      * @param {'welcome' | 'automation'} options.emailType
+     * @param {boolean} [options.trackOpens]
      * @param {null | {url: string, oneClickUrl: string}} [options.unsubscribe] - When set, the footer links to an unsubscribe URL and the email carries one-click List-Unsubscribe headers
-     * @returns {Promise<void>}
+     * @returns {Promise<unknown>}
      */
-    async #sendEmail({member, memberStatus, email, emailType, unsubscribe = null}) {
+    async #sendEmail({member, memberStatus, email, emailType, trackOpens, unsubscribe = null}) {
         if (!member.email) {
             throw new errors.IncorrectUsageError({
                 message: MESSAGES.MISSING_RECIPIENT_EMAIL
@@ -407,14 +408,31 @@ class MemberWelcomeEmailService {
             'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click'
         } : undefined;
 
-        await this.#mailer.send({
+        /** @type {string[]} */ let tags;
+        switch (emailType) {
+        case 'welcome':
+            tags = [MEMBER_WELCOME_EMAIL_TAG];
+            break;
+        case 'automation':
+            tags = [AUTOMATION_EMAIL_TAG];
+            break;
+        default: {
+            /** @type {never} */ const _exhaustive = emailType;
+            throw new errors.InternalServerError({
+                message: `Unexpected email type ${_exhaustive}`
+            });
+        }
+        }
+
+        return await this.#mailer.send({
             to: member.email,
             subject,
             html,
             text,
             forceTextContent: true,
-            tags: [MEMBER_WELCOME_EMAIL_TAG],
+            tags,
             ...(headers ? {headers} : {}),
+            ...(typeof trackOpens === 'boolean' ? {trackOpens} : {}),
             ...senderOptions
         });
     }
@@ -455,9 +473,10 @@ class MemberWelcomeEmailService {
      * @param {null | string} options.member.name
      * @param {string} options.member.uuid
      * @param {'free' | 'paid'} options.memberStatus
-     * @returns {Promise<void>}
+     * @param {boolean} options.trackOpens
+     * @returns {Promise<unknown>}
      */
-    async sendAutomationEmail({email, member, memberStatus}) {
+    async sendAutomationEmail({email, member, memberStatus, trackOpens}) {
         const designSettings = email.designSettingId ?
             await EmailDesignSetting.findOne({id: email.designSettingId}) :
             null;
@@ -473,7 +492,7 @@ class MemberWelcomeEmailService {
             null;
         const unsubscribe = unsubscribeUrl ? {url: unsubscribeUrl, oneClickUrl: unsubscribeUrl} : null;
 
-        await this.#sendEmail({
+        return await this.#sendEmail({
             member,
             memberStatus,
             emailType: 'automation',
@@ -482,6 +501,7 @@ class MemberWelcomeEmailService {
                 subject: email.subject,
                 designSettings: designSettingsJson
             },
+            trackOpens,
             unsubscribe
         });
     }

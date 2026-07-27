@@ -1,0 +1,1 @@
+var e=e=>{for(let t of e)if(t.key===`timezone`){let e=t.value;if(typeof e!=`string`)throw TypeError(`Site timezone setting is not a string`);return e}return`Etc/UTC`};export{e as t};
