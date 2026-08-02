@@ -36,7 +36,7 @@ function buildConfig() {
   const config = {
     url: getEnv('PUBLIC_URL', 'http://localhost:2368'),
     server: {
-      host: '0.0.0.0',
+      host: getEnv('HOST', '::'),
       port: Number(getEnv('PORT', '2368'))
     },
     database: {

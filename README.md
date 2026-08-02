@@ -35,6 +35,7 @@ Updated to `version 6.54.0`
 - **Ghost 6 Source Build**: Runs directly from source at the repo root, so Railway users can update by switching branches without changing root directory settings
 - **MySQL Database**: Ready for Railway MySQL or local MySQL
 - **Cloudinary Integration**: Cloud-based image storage with local fallback when `CLOUDINARY_URL` is not set
+- **Social Web Ready**: Includes a Caddy service configuration for Ghost's hosted ActivityPub service
 - **Admin Dashboard**: Full Ghost admin interface included
 - **Railway-Friendly Bootstrap**: `npm start` regenerates `config.production.json` automatically before boot
 
@@ -87,6 +88,13 @@ npm run postinstall && npm run start
 ```
 
 that should still work too. New projects should use `npm start`.
+
+### Social Web / ActivityPub
+
+Self-hosted Ghost needs a public reverse proxy for the hosted ActivityPub
+service. This repository includes a Railway-ready Caddy service in `caddy/`.
+See [Ghost ActivityPub on Railway](docs/activitypub-railway.md) for the service
+layout, variables, domain cutover, and verification steps.
 
 ### Local Development
 

@@ -1,0 +1,31 @@
+{
+    auto_https off
+}
+
+:{$PORT:8080} {
+    encode gzip
+
+    handle /.ghost/activitypub/* {
+        reverse_proxy {$ACTIVITYPUB_TARGET:https://ap.ghost.org} {
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    handle /.well-known/webfinger {
+        reverse_proxy {$ACTIVITYPUB_TARGET:https://ap.ghost.org} {
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    handle /.well-known/nodeinfo {
+        reverse_proxy {$ACTIVITYPUB_TARGET:https://ap.ghost.org} {
+            header_up X-Forwarded-Proto https
+        }
+    }
+
+    handle {
+        reverse_proxy {$GHOST_TARGET} {
+            header_up X-Forwarded-Proto https
+        }
+    }
+}
